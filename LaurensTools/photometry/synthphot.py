@@ -8,6 +8,16 @@ def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
     """
     20210520 LNA
     Make a synthetic magnitude from a spectrum using a top hat filter.
+
+    Keyword arguments:
+    wave -- Spectrum wavelength
+    flux -- Spectrum flux
+    var -- Spectrum variance
+    lower_filter_edge -- Lower bound on top hat filter
+    upper_filter_edge -- Upper bound on top hat filter
+    zp -- Zero point
+    ezp -- Zero point error
+
     """
     int_ = []
     var_ = []
@@ -38,6 +48,12 @@ def synth_lc_bessel(wave,flux,var,standard='vega'):
     Vega is the only available standard, currently. 
     Response function from: https://ui.adsabs.harvard.edu/abs/2012PASP..124..140B/abstract
     Zero points from table 3.
+
+    Keyword arguments:
+    wave -- Data spectrum wavelength
+    flux -- Data spectrum flux
+    var -- Data spectrum variance
+    standard -- Which standard spectrum to use. Valid values are: ['vega'].
     """
 
     responsefunc = pd.read_csv('bessel_simon_2012_UBVRI_response.csv')
