@@ -1,8 +1,10 @@
+import os
 import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 from astropy.io import fits
 
+dirname = os.path.dirname(os.path.abspath(__file__))
 
 def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
     """
@@ -56,7 +58,7 @@ def synth_lc_bessel(wave,flux,var,standard='vega'):
     standard -- Which standard spectrum to use. Valid values are: ['vega'].
     """
 
-    responsefunc = pd.read_csv('bessel_simon_2012_UBVRI_response.csv')
+    responsefunc = pd.read_csv(os.path.join(dirname,'bessel_simon_2012_UBVRI_response.csv'))
     photometry = {'U': None,
            'B': None,
            'V': None,
@@ -74,7 +76,7 @@ def synth_lc_bessel(wave,flux,var,standard='vega'):
            'I': 4}
 
     if standard=='vega':
-        hdul=fits.open('alpha_lyr_stis_010.fits')
+        hdul=fits.open(os.path.join(dirname,'alpha_lyr_stis_010.fits'))
         # Units are ergs/s/cm^2/AA
         st_wav = hdul[1].data['WAVELENGTH']
         st_flux = hdul[1].data['FLUX']
