@@ -51,9 +51,6 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
 
     pars, cov = curve_fit(gaus,normalized_wave,normalized, p0=[100,1,mean,sigma])
 
-    ### UNDO THE SHIFT AND SIGN FLIP. 
-    fitgauss = lambda x: gaus(x,pars[0],pars[1],pars[2],pars[3])
-
     fwhm = 2.355*pars[3]
     amp = pars[1]
 
@@ -62,6 +59,16 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
     if just_the_pEW == True:
         return pew
     elif just_the_pEW == False:
+         ### UNDO THE SHIFT AND SIGN FLIP. 
+        pars[0] = pars[0] - 100
+        if absorption==True:
+            normalized = normalized[normalized_mask]*(-1)-100
+            pars[1] = pars[1]*(-1)
+        elif absorption==False:
+            normalized = normalized[normalized_mask]*-100
+
+        fitgauss = lambda x: gaus(x,pars[0],pars[1],pars[2],pars[3])
+
         return pew, normalized, normalized_wave, fitgauss, pars
     else:
         raise ValueError('just_the_pEW must be boolean, i.e., True or False')
