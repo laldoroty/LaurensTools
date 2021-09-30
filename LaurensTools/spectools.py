@@ -26,10 +26,22 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
         idx = (np.abs(array-value)).argmin()
         return idx
 
-    start_idx = find_nearest(wave, start_lam)
-    end_idx = find_nearest(wave, end_lam)
+    def moving_avg(xvals, array):
+        # Smooths out the spectrum so you don't get a bad pEW measurement from an unusual spike or dip in noisy data.
+        # Use this to find the continuum only, not in Gaussian fitting. 
+        mv_avg = []
+        x_avg = []
+        for i in np.arange(3,len(array)-3,1):
+            mv_avg.append(np.mean([array[i+3],array[i+2],array[i+1],array[i],array[i-1],array[i-2],array[i-3]]))
+            x_avg.append(xvals[i])
+        return np.array(x_avg), np.array(mv_avg)
 
-    continuum = interp1d([wave[start_idx],wave[end_idx]], [flux[start_idx], flux[end_idx]],bounds_error=False)
+    wavavg, fluxavg = moving_avg(wave,flux)
+
+    start_idx = find_nearest(wavavg, start_lam)
+    end_idx = find_nearest(wavavg, end_lam)
+
+    continuum = interp1d([wavavg[start_idx],wavavg[end_idx]], [fluxavg[start_idx], fluxavg[end_idx]],bounds_error=False)
 
     normalized = flux/continuum(wave)
     normalized_mask = np.invert(np.isnan(normalized))
