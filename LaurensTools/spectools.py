@@ -59,7 +59,7 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
     if just_the_pEW == True:
         return pew
     elif just_the_pEW == False:
-         ### UNDO THE SHIFT AND SIGN FLIP. 
+         # Undo the shift and sign flip. 
         pars[0] = pars[0] - 100
         if absorption==True:
             normalized = normalized[normalized_mask]*(-1)-100
