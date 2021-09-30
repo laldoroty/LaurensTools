@@ -57,7 +57,7 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
     fwhm = 2.355*pars[3]
     amp = pars[1]
 
-    pew = fwhm*amp
+    pew = abs(fwhm*amp)
 
     if just_the_pEW == True:
         return pew
