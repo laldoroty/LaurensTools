@@ -49,19 +49,19 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
         # The +100 is a vertical shift to ensure all values are positive. 
         # Otherwise, the Gaussian fit doesn't work.
         # Same for the (-1)--we want the Gaussian to be pointing *up*. 
-        normalized = normalized[normalized_mask]*(-1)+100
+        normalized_lineonly = normalized[normalized_mask]*(-1)+100
     elif absorption == False:
-        normalized = normalized[normalized_mask]+100
+        normalized_lineonly = normalized[normalized_mask]+100
     else:
         raise ValueError('absorption must be boolean, i.e., True or False')
 
     normalized_wave = wave[normalized_mask]
 
     n = len(normalized_wave)
-    mean = np.sum(normalized_wave*normalized)/np.sum(normalized)  
+    mean = np.sum(normalized_wave*normalized_lineonly)/np.sum(normalized_lineonly)  
     sigma = np.sqrt(sum((normalized_wave-mean)**2)/n)
 
-    pars, cov = curve_fit(gaus,normalized_wave,normalized, p0=[100,1,mean,sigma])
+    pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[100,1,mean,sigma])
 
     fwhm = 2.355*pars[3]
     amp = pars[1]
@@ -74,10 +74,10 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
          # Undo the shift and sign flip. 
         pars[0] = pars[0] - 100
         if absorption==True:
-            normalized = normalized[normalized_mask]*(-1)-100
+            normalized = np.array(normalized*(-1)-100)
             pars[1] = pars[1]*(-1)
         elif absorption==False:
-            normalized = normalized[normalized_mask]*-100
+            normalized = np.array(normalized)-100
 
         fitgauss = lambda x: gaus(x,pars[0],pars[1],pars[2],pars[3])
 
