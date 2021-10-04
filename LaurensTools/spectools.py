@@ -81,6 +81,6 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
 
         fitgauss = lambda x: gaus(x,pars[0],pars[1],pars[2],pars[3])
 
-        return pew, normalized, normalized_wave, fitgauss, pars
+        return pew, normalized, normalized_wave, continuum, fitgauss, pars
     else:
         raise ValueError('just_the_pEW must be boolean, i.e., True or False')
