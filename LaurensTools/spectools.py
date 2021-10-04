@@ -31,8 +31,8 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
         # Use this to find the continuum only, not in Gaussian fitting. 
         mv_avg = []
         x_avg = []
-        for i in np.arange(3,len(array)-3,1):
-            mv_avg.append(np.mean([array[i+3],array[i+2],array[i+1],array[i],array[i-1],array[i-2],array[i-3]]))
+        for i in np.arange(4,len(array)-4,1):
+            mv_avg.append(np.mean([array[i+4],array[i+3],array[i+2],array[i+1],array[i],array[i-1],array[i-2],array[i-3],array[i-4]]))
             x_avg.append(xvals[i])
         return np.array(x_avg), np.array(mv_avg)
 
