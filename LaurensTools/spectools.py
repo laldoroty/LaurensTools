@@ -121,13 +121,13 @@ def line_velocity(wave, flux, start_lam, end_lam, true_lam, absorption=True):
 
     pars, cov = curve_fit(gaus,wave_lineonly,flux_lineonly, p0=[100,1,mean,sigma])
 
-    if absorption == True:
-        observed_location = np.argmin(gaus(wave_lineonly,pars))
-    elif absorption == False:
-        observed_location = np.argmax(gaus(wave_lineonly,pars)))
-    else:
-        raise ValueError('absorption must be boolean, i.e., True or False')
+    # if absorption == True:
+    #     observed_location = np.argmin(gaus(wave_lineonly,pars[0],pars[1],pars[2],pars[3]))
+    # elif absorption == False:
+    observed_location = np.argmax(gaus(wave_lineonly,pars[0],pars[1],pars[2],pars[3]))
+    # else:
+    #     raise ValueError('absorption must be boolean, i.e., True or False')
 
-    v = (((true_lam - wave_lineonly[observed_location])/true_lam))*3E8
+    v = (((true_lam - wave_lineonly[observed_location])/true_lam))*3E5
 
     return v
