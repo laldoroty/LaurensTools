@@ -80,7 +80,7 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True, plot
 
     # pew = abs(fwhm*amp)
 
-    pew = pars[1]*pars[3]*np.sqrt(2*np.pi)
+    pew = abs(pars[1]*pars[3]*np.sqrt(2*np.pi))
 
     if just_the_pEW == True:
         return pew
