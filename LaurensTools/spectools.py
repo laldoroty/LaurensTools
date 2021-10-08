@@ -61,7 +61,7 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True, plot
     if absorption == True:
         pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,-1,mean,sigma])
     elif absorption == False:
-        pars, cov = pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,1,mean,sigma])
+        pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,1,mean,sigma])
 
     if plotline:
         plt.plot(normalized_wave,normalized_lineonly)
