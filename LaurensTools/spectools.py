@@ -60,8 +60,13 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True, plot
 
     if absorption == True:
         pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,-1,mean,sigma])
+        if pars[1] > 0:
+            pars[1] = 0
+
     elif absorption == False:
         pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,1,mean,sigma])
+        if pars[1] < 0:
+            pars[1] = 0
 
     if plotline:
         plt.plot(normalized_wave,normalized_lineonly)
@@ -70,22 +75,16 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True, plot
         plt.ylabel('Normalized flux')
         plt.show()
 
-    fwhm = 2.355*pars[3]
-    amp = pars[1]
+    # fwhm = 2.355*pars[3]
+    # amp = pars[1]
 
-    pew = abs(fwhm*amp)
+    # pew = abs(fwhm*amp)
+
+    pew = pars[1]*pars[3]*np.sqrt(2*np.pi)
 
     if just_the_pEW == True:
         return pew
     elif just_the_pEW == False:
-         # Undo the shift and sign flip. 
-        pars[0] = pars[0]
-        if absorption==True:
-            normalized = np.array(normalized)
-            pars[1] = pars[1]
-        elif absorption==False:
-            normalized = np.array(normalized)
-
         fitgauss = lambda x: gaus(x,pars[0],pars[1],pars[2],pars[3])
 
         return pew, normalized, normalized_wave, continuum, fitgauss, pars
