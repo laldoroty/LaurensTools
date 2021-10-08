@@ -1,6 +1,7 @@
 import numpy as np
 from scipy.interpolate import interp1d
 from scipy.optimize import curve_fit
+import matplotlib.pyplot as plt
 
 def find_nearest(array, value):
     array = np.asarray(array)
@@ -20,7 +21,7 @@ def moving_avg(xvals, array):
 def gaus(x,shift,a,x0,sigma):
     return shift + a*np.exp(-(x-x0)**2/(2*sigma**2))
 
-def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
+def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True, plotline=True):
     """
     LNA 20210930
     Calculates the psuedo-equivalent width of a line.
@@ -45,12 +46,9 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
     normalized = flux/continuum(wave)
     normalized_mask = np.invert(np.isnan(normalized))
     if absorption == True:
-        # The +100 is a vertical shift to ensure all values are positive. 
-        # Otherwise, the Gaussian fit doesn't work.
-        # Same for the (-1)--we want the Gaussian to be pointing *up*. 
-        normalized_lineonly = normalized[normalized_mask]*(-1)+100
+        normalized_lineonly = normalized[normalized_mask]
     elif absorption == False:
-        normalized_lineonly = normalized[normalized_mask]+100
+        normalized_lineonly = normalized[normalized_mask]
     else:
         raise ValueError('absorption must be boolean, i.e., True or False')
 
@@ -60,7 +58,17 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
     mean = np.sum(normalized_wave*normalized_lineonly)/np.sum(normalized_lineonly)  
     sigma = np.sqrt(sum((normalized_wave-mean)**2)/n)
 
-    pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[100,1,mean,sigma])
+    if absorption == True:
+        pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,-1,mean,sigma])
+    elif absorption == False:
+        pars, cov = pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,1,mean,sigma])
+
+    if plotline:
+        plt.plot(normalized_wave,normalized_lineonly)
+        plt.plot(normalized_wave,gaus(normalized_wave,pars[0],pars[1],pars[2],pars[3]))
+        plt.xlabel('Wavelength')
+        plt.ylabel('Normalized flux')
+        plt.show()
 
     fwhm = 2.355*pars[3]
     amp = pars[1]
@@ -71,12 +79,12 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True):
         return pew
     elif just_the_pEW == False:
          # Undo the shift and sign flip. 
-        pars[0] = pars[0] - 100
+        pars[0] = pars[0]
         if absorption==True:
-            normalized = np.array(normalized*(-1)-100)
-            pars[1] = pars[1]*(-1)
+            normalized = np.array(normalized)
+            pars[1] = pars[1]
         elif absorption==False:
-            normalized = np.array(normalized)-100
+            normalized = np.array(normalized)
 
         fitgauss = lambda x: gaus(x,pars[0],pars[1],pars[2],pars[3])
 
