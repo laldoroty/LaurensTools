@@ -21,7 +21,7 @@ def moving_avg(xvals, array):
 def gaus(x,shift,a,x0,sigma):
     return shift + a*np.exp(-(x-x0)**2/(2*sigma**2))
 
-def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True, plotline=True):
+def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True, plotline=True, saveplot=True, plotname='pEW.png'):
     """
     LNA 20210930
     Calculates the psuedo-equivalent width of a line.
@@ -59,20 +59,20 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True, plot
     sigma = np.sqrt(sum((normalized_wave-mean)**2)/n)
 
     if absorption == True:
-        pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,-1,mean,sigma])
-        if pars[1] > 0:
-            pars[1] = 0
+        pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,-1,mean,sigma], bounds=[[1-0.000001,-1.5,-np.inf,-np.inf],[1+0.000001,0,np.inf,np.inf]])
 
     elif absorption == False:
-        pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,1,mean,sigma])
-        if pars[1] < 0:
-            pars[1] = 0
+        pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,1,mean,sigma], bounds=[[1-0.000001,0,-np.inf,-np.inf],[1+0.000001,1.5,np.inf,np.inf]])
 
     if plotline:
         plt.plot(normalized_wave,normalized_lineonly)
         plt.plot(normalized_wave,gaus(normalized_wave,pars[0],pars[1],pars[2],pars[3]))
         plt.xlabel('Wavelength')
         plt.ylabel('Normalized flux')
+        
+        if saveplot:
+            plt.savefig(plotname, dpi=300, bbox_inches='tight')
+
         plt.show()
 
     # fwhm = 2.355*pars[3]
@@ -80,7 +80,16 @@ def pEW(wave, flux, start_lam, end_lam, absorption=True, just_the_pEW=True, plot
 
     # pew = abs(fwhm*amp)
 
-    pew = abs(pars[1]*pars[3]*np.sqrt(2*np.pi))
+    # pew = abs(pars[1]*pars[3]*np.sqrt(2*np.pi))
+    
+    stepsize=1
+    wavelength_range = np.arange(start_lam,end_lam,stepsize)
+    # pew = (end_lam-start_lam) - np.trapz(wavelength_range, gaus(wavelength_range,pars[0],pars[1],pars[2],pars[3]))
+
+    pew = np.sum(1 - gaus(wavelength_range,*pars))*stepsize
+
+    if pew < 0:
+        pew = 0
 
     if just_the_pEW == True:
         return pew
