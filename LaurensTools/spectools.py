@@ -126,24 +126,15 @@ def line_velocity(wave, flux, start_lam, end_lam, true_lam, absorption=True):
     sigma = np.sqrt(sum((wave_lineonly-mean)**2)/n)
 
     if absorption == True:
-        # The +100 is a vertical shift to ensure all values are positive. 
-        # Otherwise, the Gaussian fit doesn't work.
-        # Same for the (-1)--we want the Gaussian to be pointing *up*. 
-        flux_lineonly = np.array(flux_lineonly)*(-1)+100
+        pars, cov = curve_fit(gaus,wave_lineonly,flux_lineonly, p0=[1,-1,mean,sigma], bounds=[[1-0.000001,-1.5,-np.inf,-np.inf],[1+0.000001,0,np.inf,np.inf]])
+        observed_location = np.argmin(gaus(wave_lineonly,pars[0],pars[1],pars[2],pars[3]))
     elif absorption == False:
-        flux_lineonly = np.array(flux_lineonly)+100
+        pars, cov = curve_fit(gaus,wave_lineonly,flux_lineonly, p0=[1,1,mean,sigma], bounds=[[1-0.000001,0,-np.inf,-np.inf],[1+0.000001,1.5,np.inf,np.inf]])
+        observed_location = np.argmax(gaus(wave_lineonly,pars[0],pars[1],pars[2],pars[3]))
     else:
         raise ValueError('absorption must be boolean, i.e., True or False')
 
-    pars, cov = curve_fit(gaus,wave_lineonly,flux_lineonly, p0=[100,1,mean,sigma])
-
-    # if absorption == True:
-    #     observed_location = np.argmin(gaus(wave_lineonly,pars[0],pars[1],pars[2],pars[3]))
-    # elif absorption == False:
-    observed_location = np.argmax(gaus(wave_lineonly,pars[0],pars[1],pars[2],pars[3]))
-    # else:
-    #     raise ValueError('absorption must be boolean, i.e., True or False')
-
-    v = (((true_lam - wave_lineonly[observed_location])/true_lam))*3E5
+    # Eqn 1, Galbany et al. 2016:
+    v = 3E5*(((true_lam - wave_lineonly[observed_location])/true_lam + 1)**2 - 1)/(((true_lam - wave_lineonly[observed_location])/true_lam + 1)**2 + 1)
 
     return v
