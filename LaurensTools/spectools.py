@@ -161,6 +161,6 @@ def line_velocity(wave, flux, start_lam, end_lam, rest_lam, absorption=True):
 
     dv_d_obs_lam = 3E5*(4*rest_lam*(wave_lineonly[observed_location]**2 - 3*rest_lam*wave_lineonly[observed_location] + rest_lam**2))/(wave_lineonly[observed_location]**2 - 4*rest_lam*wave_lineonly[observed_location] + 5*rest_lam**2)**2
 
-    ev = dv_d_obs_lam*cov[1][1]
+    ev = abs(dv_d_obs_lam*cov[1][1])
 
     return v, ev
