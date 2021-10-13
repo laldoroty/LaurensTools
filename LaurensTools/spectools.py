@@ -84,15 +84,6 @@ def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=
     pardict = result.params.valuesdict()
     pars = [*pardict.values()]
 
-    if return_error:
-        # scaled_err = err*np.sqrt(result.redchi)
-        # dpew_dlam = -(pardict['a'])/(pardict['sigma']**2)*np.sum((normalized_wave - pardict['x0'])*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
-        dpew_dlam0 = (pardict['a'])/(pardict['sigma']**2)*np.sum((normalized_wave - pardict['x0'])*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
-        dpew_da = np.sum(np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
-        dpew_dsigma = (pardict['a'])/(pardict['sigma']**3)*np.sum((normalized_wave - pardict['x0'])**2*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
-        
-        epew = np.sqrt(result.covar[0][0]**2*dpew_da**2 + result.covar[1][1]**2*dpew_dlam0**2 + result.covar[2][2]**2*dpew_dsigma**2)
-
     if plotline:
         plt.plot(normalized_wave,normalized_lineonly)
         plt.plot(normalized_wave,gaus(normalized_wave,*pars))
@@ -111,6 +102,15 @@ def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=
 
     if pew < 0:
         pew = 0
+
+    if return_error:
+        # scaled_err = err*np.sqrt(result.redchi)
+        # dpew_dlam = -(pardict['a'])/(pardict['sigma']**2)*np.sum((normalized_wave - pardict['x0'])*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
+        dpew_dlam0 = stepsize*(pardict['a'])/(pardict['sigma']**2)*np.sum((normalized_wave - pardict['x0'])*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
+        dpew_da = stepsize*np.sum(np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
+        dpew_dsigma = stepsize*(pardict['a'])/(pardict['sigma']**3)*np.sum((normalized_wave - pardict['x0'])**2*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
+        
+        epew = np.sqrt(result.covar[0][0]**2*dpew_da**2 + result.covar[1][1]**2*dpew_dlam0**2 + result.covar[2][2]**2*dpew_dsigma**2)
 
     if just_the_pEW == True:
         return pew
@@ -159,4 +159,8 @@ def line_velocity(wave, flux, start_lam, end_lam, rest_lam, absorption=True):
     # Eqn 1, Galbany et al. 2016:
     v = 3E5*(((rest_lam - wave_lineonly[observed_location])/rest_lam + 1)**2 - 1)/(((rest_lam - wave_lineonly[observed_location])/rest_lam + 1)**2 + 1)
 
-    return v
+    dv_d_obs_lam = 3E5*(4*rest_lam*(wave_lineonly[observed_location]**2 - 3*rest_lam*wave_lineonly[observed_location] + rest_lam**2))/(wave_lineonly[observed_location]**2 - 4*rest_lam*wave_lineonly[observed_location] + 5*rest_lam**2)**2
+
+    ev = dv_d_obs_lam*cov[1][1]
+
+    return v, ev
