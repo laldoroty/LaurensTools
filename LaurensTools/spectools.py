@@ -106,11 +106,14 @@ def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=
     if return_error:
         # scaled_err = err*np.sqrt(result.redchi)
         # dpew_dlam = -(pardict['a'])/(pardict['sigma']**2)*np.sum((normalized_wave - pardict['x0'])*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
-        dpew_dlam0 = stepsize*(pardict['a'])/(pardict['sigma']**2)*np.sum((normalized_wave - pardict['x0'])*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
-        dpew_da = stepsize*np.sum(np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
-        dpew_dsigma = stepsize*(pardict['a'])/(pardict['sigma']**3)*np.sum((normalized_wave - pardict['x0'])**2*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
+        # dpew_dlam0 = stepsize*(pardict['a'])/(pardict['sigma']**2)*np.sum((normalized_wave - pardict['x0'])*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
+        # dpew_da = stepsize*np.sum(np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
+        # dpew_dsigma = stepsize*(pardict['a'])/(pardict['sigma']**3)*np.sum((normalized_wave - pardict['x0'])**2*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
         
-        epew = np.sqrt(result.covar[0][0]**2*dpew_da**2 + result.covar[1][1]**2*dpew_dlam0**2 + result.covar[2][2]**2*dpew_dsigma**2)
+        # epew = np.sqrt(result.covar[0][0]**2*dpew_da**2 + result.covar[1][1]**2*dpew_dlam0**2 + result.covar[2][2]**2*dpew_dsigma**2)
+        epew = np.sqrt(2*np.pi)*np.sqrt(pardict['a']**2*result.covar[0][0]**2 + pardict['sigma']**2*result.covar[2][2]**2)
+    else:
+        epew = 0
 
     if just_the_pEW == True:
         return pew
@@ -122,7 +125,7 @@ def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=
         raise ValueError('just_the_pEW must be boolean, i.e., True or False')
 
 
-def line_velocity(wave, flux, start_lam, end_lam, rest_lam, absorption=True):
+def line_velocity(wave, flux, start_lam, end_lam, rest_lam, absorption=True, plotline=True):
     """
     LNA20201007
     Calculates the velocity of an absorption or emission line in km/s.
@@ -147,6 +150,10 @@ def line_velocity(wave, flux, start_lam, end_lam, rest_lam, absorption=True):
     mean = np.sum(wave_lineonly*flux_lineonly)/np.sum(flux_lineonly)  
     sigma = np.sqrt(sum((wave_lineonly-mean)**2)/n)
 
+    continuum = interp1d([wave_lineonly[0],wave_lineonly[-1]], [flux_lineonly[0], flux_lineonly[-1]],bounds_error=False)
+
+    flux_lineonly = flux_lineonly/continuum(wave_lineonly)
+
     if absorption == True:
         pars, cov = curve_fit(gaus,wave_lineonly,flux_lineonly, p0=[-1,mean,sigma], bounds=[[-1.5,-np.inf,-np.inf],[0,np.inf,np.inf]])
         observed_location = np.argmin(gaus(wave_lineonly,*pars))
@@ -156,11 +163,24 @@ def line_velocity(wave, flux, start_lam, end_lam, rest_lam, absorption=True):
     else:
         raise ValueError('absorption must be boolean, i.e., True or False')
 
+    if plotline:
+        plt.plot(wave_lineonly,flux_lineonly)
+        plt.plot(wave_lineonly,gaus(wave_lineonly,*pars))
+        plt.axvline(x=pars[1], linestyle='--',color='black')
+        plt.xlabel('Wavelength')
+        plt.ylabel('Normalized flux')
+        
+        # if saveplot:
+        #     plt.savefig(plotname, dpi=300, bbox_inches='tight')
+
+        plt.show()
+
     # Eqn 1, Galbany et al. 2016:
     v = 3E5*(((rest_lam - wave_lineonly[observed_location])/rest_lam + 1)**2 - 1)/(((rest_lam - wave_lineonly[observed_location])/rest_lam + 1)**2 + 1)
 
     dv_d_obs_lam = 3E5*(4*rest_lam*(wave_lineonly[observed_location]**2 - 3*rest_lam*wave_lineonly[observed_location] + rest_lam**2))/(wave_lineonly[observed_location]**2 - 4*rest_lam*wave_lineonly[observed_location] + 5*rest_lam**2)**2
 
     ev = abs(dv_d_obs_lam*cov[1][1])
+    ev_2 = 3E5*cov[1][1]/wave_lineonly[observed_location]
 
-    return v, ev
+    return v, ev, ev_2
