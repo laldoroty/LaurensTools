@@ -111,7 +111,11 @@ def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=
         # dpew_dsigma = stepsize*(pardict['a'])/(pardict['sigma']**3)*np.sum((normalized_wave - pardict['x0'])**2*np.exp(-(normalized_wave - pardict['x0'])**2/(2*pardict['sigma']**2)))
         
         # epew = np.sqrt(result.covar[0][0]**2*dpew_da**2 + result.covar[1][1]**2*dpew_dlam0**2 + result.covar[2][2]**2*dpew_dsigma**2)
-        epew = np.sqrt(2*np.pi)*np.sqrt(pardict['sigma']**2*result.covar[0][0]**2 + pardict['a']**2*result.covar[2][2]**2)
+        try:
+            epew = np.sqrt(2*np.pi)*np.sqrt(pardict['sigma']**2*result.covar[0][0]**2 + pardict['a']**2*result.covar[2][2]**2)
+        except:
+            epew = 0
+            print('epEW calculation failed, value set to 0')
     else:
         epew = 0
 
