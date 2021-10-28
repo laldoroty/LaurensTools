@@ -21,9 +21,10 @@ def moving_avg(xvals, array):
 
 def gaus(x,a,x0,sigma):
     # The 1 is because I have normalized the spectrum to the continuum around the line.
-    return 1 + a*np.exp(-(x-x0)**2/(2*sigma**2))
+    return 1 + a*(1/(sigma*np.sqrt(2*np.pi)))*np.exp(-(x-x0)**2/(2*sigma**2))
+    # return 1 + a*np.exp(-(x-x0)**2/(2*sigma**2))
 
-def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=True, just_the_pEW=True, plotline=True, saveplot=True, plotname='pEW.png'):
+def pEW(wave, flux, var, start_lam, end_lam, err=None, absorption=True, return_error=True, just_the_pEW=True, plotline=True, saveplot=True, plotname='pEW.png'):
     """
     LNA 20210930
     Calculates the psuedo-equivalent width of a line.
@@ -56,6 +57,7 @@ def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=
         raise ValueError('absorption must be boolean, i.e., True or False')
 
     normalized_wave = wave[normalized_mask]
+    var_lineonly = var[normalized_mask]
 
     n = len(normalized_wave)
     mean = np.sum(normalized_wave*normalized_lineonly)/np.sum(normalized_lineonly)  
@@ -66,11 +68,13 @@ def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=
     if absorption == True:
         initial_guess = gmodel.make_params(a=-1,x0=mean,sigma=sigma)
         gmodel.set_param_hint('a', max=0)
+        gmodel.set_param_hint('x0', min=mean-100, max=mean+100)
         # pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,-1,mean,sigma], bounds=[[1-0.000001,-1.5,-np.inf,-np.inf],[1+0.000001,0,np.inf,np.inf]])
 
     elif absorption == False:
         initial_guess = gmodel.make_params(a=1,x0=mean,sigma=sigma)
         gmodel.set_param_hint('a', min=0)
+        gmodel.set_param_hint('x0', min=mean-100, max=mean+100)
         # pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,1,mean,sigma], bounds=[[1-0.000001,0,-np.inf,-np.inf],[1+0.000001,1.5,np.inf,np.inf]])
 
     if return_error:
@@ -99,6 +103,7 @@ def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=
     wavelength_range = np.arange(start_lam,end_lam,stepsize)
 
     pew = np.sum(1 - gaus(wavelength_range,*pars))*stepsize
+    # pew = np.sum((1-normalized_lineonly)*stepsize)
 
     if pew < 0:
         pew = 0
@@ -112,7 +117,15 @@ def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=
         
         # epew = np.sqrt(result.covar[0][0]**2*dpew_da**2 + result.covar[1][1]**2*dpew_dlam0**2 + result.covar[2][2]**2*dpew_dsigma**2)
         try:
-            epew = np.sqrt(2*np.pi)*np.sqrt(pardict['sigma']**2*result.covar[0][0]**2 + pardict['a']**2*result.covar[2][2]**2)
+            # epew = np.sqrt(2*np.pi)*np.sqrt(pardict['sigma']**2*result.covar[0][0]**2 + pardict['a']**2*result.covar[2][2]**2)
+            # print('covariance matrix')
+            # print(result.covar)
+            # epew = np.sqrt(np.sum(var_lineonly))
+            if pew < 6:
+                epew = 0
+            else:
+                epew = np.sqrt(result.covar[0][0])
+
         except:
             epew = 0
             print('epEW calculation failed, value set to 0')
@@ -129,7 +142,7 @@ def pEW(wave, flux, start_lam, end_lam, err=None, absorption=True, return_error=
         raise ValueError('just_the_pEW must be boolean, i.e., True or False')
 
 
-def line_velocity(wave, flux, start_lam, end_lam, rest_lam, absorption=True, plotline=True):
+def line_velocity(wave, flux, var, start_lam, end_lam, rest_lam, absorption=True, plotline=True):
     """
     LNA20201007
     Calculates the velocity of an absorption or emission line in km/s.
@@ -149,6 +162,7 @@ def line_velocity(wave, flux, start_lam, end_lam, rest_lam, absorption=True, plo
 
     wave_lineonly = wave[start_idx:end_idx]
     flux_lineonly = flux[start_idx:end_idx]
+    var_lineonly = var[start_idx:end_idx]
 
     n = len(wave_lineonly)
     mean = np.sum(wave_lineonly*flux_lineonly)/np.sum(flux_lineonly)  
@@ -158,14 +172,40 @@ def line_velocity(wave, flux, start_lam, end_lam, rest_lam, absorption=True, plo
 
     flux_lineonly = flux_lineonly/continuum(wave_lineonly)
 
+    gmodel = Model(gaus)
+
     if absorption == True:
-        pars, cov = curve_fit(gaus,wave_lineonly,flux_lineonly, p0=[-1,mean,sigma], bounds=[[-1.5,-np.inf,-np.inf],[0,np.inf,np.inf]])
-        observed_location = np.argmin(gaus(wave_lineonly,*pars))
+        initial_guess = gmodel.make_params(a=-1,x0=mean,sigma=sigma)
+        gmodel.set_param_hint('a', max=0)
+        gmodel.set_param_hint('x0', min=mean-100, max=mean+100)
+        # pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,-1,mean,sigma], bounds=[[1-0.000001,-1.5,-np.inf,-np.inf],[1+0.000001,0,np.inf,np.inf]])
     elif absorption == False:
-        pars, cov = curve_fit(gaus,wave_lineonly,flux_lineonly, p0=[1,mean,sigma], bounds=[[0,-np.inf,-np.inf],[1.5,np.inf,np.inf]])
-        observed_location = np.argmax(gaus(wave_lineonly,*pars))
+        initial_guess = gmodel.make_params(a=1,x0=mean,sigma=sigma)
+        gmodel.set_param_hint('a', min=0)
+        gmodel.set_param_hint('x0', min=mean-100, max=mean+100)
+        # pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,1,mean,sigma], bounds=[[1-0.000001,0,-np.inf,-np.inf],[1+0.000001,1.5,np.inf,np.inf]])
     else:
         raise ValueError('absorption must be boolean, i.e., True or False')
+
+    result = gmodel.fit(flux_lineonly, initial_guess, x=wave_lineonly, weights=1/var_lineonly)
+
+    pardict = result.params.valuesdict()
+    pars = [*pardict.values()]
+    
+    if absorption == True:
+        observed_location = np.argmin(gaus(wave_lineonly,*pars))
+    elif absorption == False:
+        observed_location = np.argmax(gaus(wave_lineonly,*pars))
+
+
+    # if absorption == True:
+    #     pars, cov = curve_fit(gaus,wave_lineonly,flux_lineonly, p0=[-1,mean,sigma], bounds=[[-1.5,-np.inf,-np.inf],[0,np.inf,np.inf]])
+    #     observed_location = np.argmin(gaus(wave_lineonly,*pars))
+    # elif absorption == False:
+    #     pars, cov = curve_fit(gaus,wave_lineonly,flux_lineonly, p0=[1,mean,sigma], bounds=[[0,-np.inf,-np.inf],[1.5,np.inf,np.inf]])
+    #     observed_location = np.argmax(gaus(wave_lineonly,*pars))
+    # else:
+    #     raise ValueError('absorption must be boolean, i.e., True or False')
 
     if plotline:
         plt.plot(wave_lineonly,flux_lineonly)
@@ -184,7 +224,7 @@ def line_velocity(wave, flux, start_lam, end_lam, rest_lam, absorption=True, plo
 
     dv_d_obs_lam = 3E5*(4*rest_lam*(wave_lineonly[observed_location]**2 - 3*rest_lam*wave_lineonly[observed_location] + rest_lam**2))/(wave_lineonly[observed_location]**2 - 4*rest_lam*wave_lineonly[observed_location] + 5*rest_lam**2)**2
 
-    ev = abs(dv_d_obs_lam*cov[1][1])
-    ev_2 = 3E5*cov[1][1]/wave_lineonly[observed_location]
+    ev = abs(dv_d_obs_lam*result.covar[1][1])
+    ev_2 = 3E5*result.covar[1][1]/wave_lineonly[observed_location]
 
     return v, ev, ev_2
