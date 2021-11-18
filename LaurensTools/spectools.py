@@ -24,7 +24,35 @@ def gaus(x,a,x0,sigma):
     return 1 + a*(1/(sigma*np.sqrt(2*np.pi)))*np.exp(-(x-x0)**2/(2*sigma**2))
     # return 1 + a*np.exp(-(x-x0)**2/(2*sigma**2))
 
-def pEW(wave, flux, var, start_lam, end_lam, err=None, absorption=True, return_error=True, just_the_pEW=True, plotline=True, saveplot=True, plotname='pEW.png'):
+def normalize(wave,flux,start_lam,end_lam,var=None):
+    """
+    LNA 20211111
+    Returns the normalized flux and wavelength over the wavelength range specified,
+    i.e., around the continuum. 
+
+    Keyword arguments --
+    wave -- spectrum wavelength
+    flux -- spectrum flux (not normalized)
+    start_lam -- beginning endpoint for determining location of continuum
+    end_lam -- ending endpoint for determining location of continuum
+    var -- if supplied, trims variance array to same location as wave and flux arrays
+
+    """
+    wavavg, fluxavg = moving_avg(wave,flux)
+    start_idx = find_nearest(wavavg, start_lam)
+    end_idx = find_nearest(wavavg, end_lam)
+
+    continuum = interp1d([wavavg[start_idx],wavavg[end_idx]], [fluxavg[start_idx], fluxavg[end_idx]],bounds_error=False)
+
+    start_idx = find_nearest(wave, start_lam)
+    end_idx = find_nearest(wave, end_lam)
+
+    if var.all() == None:
+        return wave[start_idx:end_idx], flux[start_idx:end_idx]/continuum(wave[start_idx:end_idx])
+    else:
+        return wave[start_idx:end_idx], flux[start_idx:end_idx]/continuum(wave[start_idx:end_idx]), var[start_idx:end_idx]
+
+def pEW(wave, flux, var, start_lam, end_lam, absorption=True, return_error=True, just_the_pEW=True, plotline=True, saveplot=True, plotname='pEW.png'):
     """
     LNA 20210930
     Calculates the psuedo-equivalent width of a line.
@@ -40,24 +68,7 @@ def pEW(wave, flux, var, start_lam, end_lam, err=None, absorption=True, return_e
                     its corresponding wavelengths, a function for the fit Gaussian, and the fit Gaussian parameters. 
 
     """
-    wavavg, fluxavg = moving_avg(wave,flux)
-
-    start_idx = find_nearest(wavavg, start_lam)
-    end_idx = find_nearest(wavavg, end_lam)
-
-    continuum = interp1d([wavavg[start_idx],wavavg[end_idx]], [fluxavg[start_idx], fluxavg[end_idx]],bounds_error=False)
-
-    normalized = flux/continuum(wave)
-    normalized_mask = np.invert(np.isnan(normalized))
-    if absorption == True:
-        normalized_lineonly = normalized[normalized_mask]
-    elif absorption == False:
-        normalized_lineonly = normalized[normalized_mask]
-    else:
-        raise ValueError('absorption must be boolean, i.e., True or False')
-
-    normalized_wave = wave[normalized_mask]
-    var_lineonly = var[normalized_mask]
+    normalized_wave,normalized_lineonly,var_lineonly = normalize(wave,flux,start_lam,end_lam,var)
 
     n = len(normalized_wave)
     mean = np.sum(normalized_wave*normalized_lineonly)/np.sum(normalized_lineonly)  
@@ -76,17 +87,23 @@ def pEW(wave, flux, var, start_lam, end_lam, err=None, absorption=True, return_e
         gmodel.set_param_hint('a', min=0)
         gmodel.set_param_hint('x0', min=mean-100, max=mean+100)
         # pars, cov = curve_fit(gaus,normalized_wave,normalized_lineonly, p0=[1,1,mean,sigma], bounds=[[1-0.000001,0,-np.inf,-np.inf],[1+0.000001,1.5,np.inf,np.inf]])
+        
 
-    if return_error:
-        err_lineonly = err[normalized_mask]
-        result = gmodel.fit(normalized_lineonly, initial_guess, x=normalized_wave, weights=1/err_lineonly)
-    elif err == None:
-        result = gmodel.fit(normalized_lineonly, initial_guess, x=normalized_wave)
-    else:
-        raise ValueError('Array must be supplied as an argument for err if return_error == True.')
+    err_lineonly = np.sqrt(var_lineonly)
+    result = gmodel.fit(normalized_lineonly, initial_guess, x=normalized_wave)
+
+    # if err == None and return_error==True:
+    #     raise ValueError('Array must be supplied as an argument for err if return_error == True.')
+    # elif err == None:
+    #     result = gmodel.fit(normalized_lineonly, initial_guess, x=normalized_wave)
+    # elif err.any() != None and return_error==True: 
+    #     err_lineonly = err[normalized_mask]
+    #     result = gmodel.fit(normalized_lineonly, initial_guess, x=normalized_wave, weights=1/err_lineonly)
+
 
     pardict = result.params.valuesdict()
     pars = [*pardict.values()]
+    print('fit parameters dictionary', pardict)
 
     if plotline:
         plt.plot(normalized_wave,normalized_lineonly)
@@ -137,10 +154,16 @@ def pEW(wave, flux, var, start_lam, end_lam, err=None, absorption=True, return_e
     elif just_the_pEW == False:
         fitgauss = lambda x: gaus(x,*pars)
 
-        return pew, epew, normalized, normalized_wave, continuum, fitgauss, pars
+        return pew, epew, normalized_lineonly, normalized_wave, fitgauss, pars
     else:
         raise ValueError('just_the_pEW must be boolean, i.e., True or False')
 
+def pEW_mcmc(wave,flux,var,start_lam,end_lam,Niter=225):
+    pewlist = []
+    for i in range(Niter):
+        pewlist.append(pEW(wave, flux, var, start_lam-np.random.randint(-10,11), end_lam+np.random.randint(-10,11), return_error=False, just_the_pEW=True, plotline=False))
+    
+    return np.mean(pewlist), np.std(pewlist)
 
 def line_velocity(wave, flux, var, start_lam, end_lam, rest_lam, absorption=True, plotline=True):
     """
