@@ -44,7 +44,7 @@ def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
     
     return mag, emag
 
-def synth_lc_bessel(wave,flux,var,standard='vega'):
+def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True):
     """
     Make a synthetic magnitude from a spectrum using Bessel filters. 
     Vega is the only available standard, currently. 
@@ -58,6 +58,9 @@ def synth_lc_bessel(wave,flux,var,standard='vega'):
     standard -- Which standard spectrum to use. Valid values are: ['vega'].
     """
 
+    h = 6.626E-27 # Planck constant, erg s
+    c = 3E10 # Speed of light, cm/s
+    
     responsefunc = pd.read_csv(os.path.join(dirname,'bessel_simon_2012_UBVRI_response.csv'))
     photometry = {'U': None,
            'B': None,
@@ -87,60 +90,32 @@ def synth_lc_bessel(wave,flux,var,standard='vega'):
                        'R': -0.023,
                        'I': -0.023}
     
-    cov = np.zeros((5,5))
-    covref = np.zeros((5,5))
-    jacobian = []
-    diag = []
-    meanflux = []
-    spectra = []
-    
     for band in photometry:
         if band == 'U':
-            spectra.append(np.zeros(len(flux)))
-            meanflux.append(0)
-            diag.append(0)
-            jacobian.append(0)
+            photometry[band] = 0
+            ephotometry[band] = 0
         elif band != 'U':
             F = 0
             Fref = 0
-            s = []
-            d = 0
+            var_F = 0
+
+            if convert_to_ergs:
+                responsefunc['%s' % band] = h*c*responsefunc['%s' % band]
+                normalization_const = responsefunc['%s' % band].max()
+                responsefunc['%s' % band] = responsefunc['%s' % band]/normalization_const
 
             responsefunc_interp = interp1d(responsefunc['lam_%s' % band], responsefunc['%s' % band],kind='linear')
 
             for i in range(len(wave)):
                 if wave[i] > min(responsefunc['lam_%s' % band]) and wave[i] < max(responsefunc['lam_%s' % band]):
                     F += flux[i]*responsefunc_interp(wave[i])*(wave[i]-wave[i-1])
-                    d += var[i]
-                    s.append(flux[i])
-                else:
-                    s.append(0)
-            diag.append(d)
-            meanflux.append(np.sum(s)/(len(wave)-1))
-            spectra.append(s)
+                    var_F += var[i]*responsefunc_interp(wave[i])**2*(wave[i]-wave[i-1])**2
 
             for i in range(len(st_wav)):
                 if st_wav[i] > min(responsefunc['lam_%s' % band]) and st_wav[i] < max(responsefunc['lam_%s' % band]):
                     Fref += st_flux[i]*responsefunc_interp(st_wav[i])*(st_wav[i]-st_wav[i-1])
 
-            jacobian.append(1.09/F)
             photometry[band] = -2.5*np.log10(F/Fref) + zeropoints[band]
-    jacobian = np.array(jacobian)
-
-    for i in range(len(cov)):
-        for j in range(len(cov[i])):
-            if i == j:
-                cov[i,i] = diag[i]
-
-            elif i != j and cov[i,j] == 0:
-                sigsq = 0
-                for k in range(len(spectra[i])):
-                    sigsq += (spectra[i][k]-meanflux[i])*(spectra[j][k]-meanflux[j])
-                sigsq = (1/(len(spectra[i])-1))*sigsq
-                cov[i,j] = sigsq
-                cov[j,i] = sigsq
-                
-    for band in ephotometry:
-        ephotometry[band] = np.sqrt(np.matmul(jacobian,(np.matmul(cov,jacobian.T))))
+            ephotometry[band] = np.sqrt((1.09/F)**2*var_F)
                 
     return photometry, ephotometry
