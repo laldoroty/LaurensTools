@@ -50,6 +50,7 @@ def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True):
     Vega is the only available standard, currently. 
     Response function from: https://ui.adsabs.harvard.edu/abs/2012PASP..124..140B/abstract
     Zero points from table 3.
+    Compare errors to the errors in: https://arxiv.org/pdf/0910.3330.pdf 
 
     Keyword arguments:
     wave -- Data spectrum wavelength
