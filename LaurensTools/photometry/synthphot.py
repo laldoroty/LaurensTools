@@ -120,3 +120,68 @@ def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True):
             ephotometry[band] = np.sqrt((1.09/F)**2*var_F)
                 
     return photometry, ephotometry
+
+def synth_lc_sdss(wave,flux,var,standard='sdss'):
+    """
+    Make a synthetic magnitude from a spectrum using Bessel filters. 
+    Vega is the only available standard, currently. 
+    Response function from: https://arxiv.org/abs/1002.3701 (http://www.ioa.s.u-tokyo.ac.jp/~doi/sdss/SDSSresponse.html)
+
+    Keyword arguments:
+    wave -- Data spectrum wavelength
+    flux -- Data spectrum flux
+    var -- Data spectrum variance
+    standard -- Which standard spectrum to use. Valid values are: ['vega'].
+    """
+
+    photometry = {'u': None,
+           'g': None,
+           'r': None,
+           'i': None,
+           'z': None}
+    ephotometry = {'u': None,
+           'g': None,
+           'r': None,
+           'i': None,
+           'z': None}
+    band_index = {'u': 0,
+           'g': 1,
+           'r': 2,
+           'i': 3,
+           'z': 4}
+
+    if standard=='sdss':
+        hdul=fits.open(os.path.join(dirname,'bd_17d4708_stisnic_007.fits'))
+        # Units are ergs/s/cm^2/AA
+        st_wav = hdul[1].data['WAVELENGTH']
+        st_flux = hdul[1].data['FLUX']
+        st_flux_error = np.sqrt(hdul[1].data['STATERROR']**2 + hdul[1].data['SYSERROR']**2)
+        # Stole zeropoints from the SDSS file in SNooPy. 
+        zeropoints = {'u': 12.4757864,
+            'g': 14.2013159905,
+            'r': 14.2156544329,
+            'i': 13.7775438954,
+            'z': 11.8525822106}
+
+    for band in photometry:
+        responsefunc = pd.read_csv(os.path.join(dirname,f'sdss_filters/{band}6.dat'), delimiter=' ')
+        # if convert_to_ergs:
+        #     responsefunc['%s' % band] = h*c*responsefunc['%s' % band]
+        #     normalization_const = responsefunc['%s' % band].max()
+        #     responsefunc['%s' % band] = responsefunc['%s' % band]/normalization_const
+
+        responsefunc_interp = interp1d(responsefunc['lam_%s' % band], responsefunc['%s' % band],kind='linear')
+
+        for i in range(len(wave)):
+            if wave[i] > min(responsefunc['lam_%s' % band]) and wave[i] < max(responsefunc['lam_%s' % band]):
+                F += flux[i]*responsefunc_interp(wave[i])*(wave[i]-wave[i-1])
+                var_F += var[i]*responsefunc_interp(wave[i])**2*(wave[i]-wave[i-1])**2
+
+        for i in range(len(st_wav)):
+            if st_wav[i] > min(responsefunc['lam_%s' % band]) and st_wav[i] < max(responsefunc['lam_%s' % band]):
+                Fref += st_flux[i]*responsefunc_interp(st_wav[i])*(st_wav[i]-st_wav[i-1])
+
+        photometry[band] = -2.5*np.log10(F/Fref) + zeropoints[band]
+        ephotometry[band] = np.sqrt((1.09/F)**2*var_F)
+            
+    return photometry, ephotometry

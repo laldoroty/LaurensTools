@@ -4,3 +4,4 @@ pandas
 astropy
 pycmpfit
 playsound
+matplotlib
