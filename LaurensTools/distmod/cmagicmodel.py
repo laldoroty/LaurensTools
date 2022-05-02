@@ -28,7 +28,10 @@ def cmagicmodel(bbv,ebbv,bmax,ebmax,dm15,edm15,slope,eslope,zcmb,model='He2018')
     # n: Number of parameters of the function [len(theta)]
     
     def userfunc(m, n, theta, private_data):
-        M,delta,b2 = theta
+        if model=='He2018' or model=='Aldoroty2022':
+            M,delta,b2 = theta
+        elif model=='nodm15':
+            M,b2 = theta
         BBV,EBBV,BMAX,EBMAX,DM15,EDM15,SLOPE,ESLOPE,EVPEC,MU = private_data["bbv"],private_data["ebbv"],private_data["bmax"],private_data["ebmax"], private_data["dm15"],private_data["edm15"],private_data["slope"],private_data["eslope"],private_data["evpec"], private_data["mu"]
         devs = np.zeros((m), dtype = np.float64)
         user_dict = {"deviates": None} 
