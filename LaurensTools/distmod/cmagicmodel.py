@@ -10,7 +10,7 @@ def cmagicmodel(bbv,ebbv,bmax,ebmax,dm15,edm15,slope,eslope,zcmb,model='He2018')
     'He2018': M3 from He et al. 2018.
     'Aldoroty2022': mine
     'nodm15': mine but without the dm15 term. If using this, for dm15 and edm15 arguments,
-    use any array with len(bbv). This may be filled with any values, e.g., 0 or 1.
+    put 'None'.
     """
 
     cosmo = FlatLambdaCDM(H0=70,Om0=0.3)
@@ -30,9 +30,11 @@ def cmagicmodel(bbv,ebbv,bmax,ebmax,dm15,edm15,slope,eslope,zcmb,model='He2018')
     def userfunc(m, n, theta, private_data):
         if model=='He2018' or model=='Aldoroty2022':
             M,delta,b2 = theta
+            BBV,EBBV,BMAX,EBMAX,DM15,EDM15,SLOPE,ESLOPE,EVPEC,MU = private_data["bbv"],private_data["ebbv"],private_data["bmax"],private_data["ebmax"], private_data["dm15"],private_data["edm15"],private_data["slope"],private_data["eslope"],private_data["evpec"], private_data["mu"]
         elif model=='nodm15':
             M,b2 = theta
-        BBV,EBBV,BMAX,EBMAX,DM15,EDM15,SLOPE,ESLOPE,EVPEC,MU = private_data["bbv"],private_data["ebbv"],private_data["bmax"],private_data["ebmax"], private_data["dm15"],private_data["edm15"],private_data["slope"],private_data["eslope"],private_data["evpec"], private_data["mu"]
+            BBV,EBBV,BMAX,EBMAX,SLOPE,ESLOPE,EVPEC,MU = private_data["bbv"],private_data["ebbv"],private_data["bmax"],private_data["ebmax"],private_data["slope"],private_data["eslope"],private_data["evpec"], private_data["mu"]
+        
         devs = np.zeros((m), dtype = np.float64)
         user_dict = {"deviates": None} 
         
