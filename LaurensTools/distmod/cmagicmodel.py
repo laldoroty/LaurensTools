@@ -9,8 +9,9 @@ def cmagicmodel(bbv,ebbv,bmax,ebmax,dm15,edm15,slope,eslope,zcmb,model='He2018')
     Arguments for 'model': 
     'He2018': M3 from He et al. 2018.
     'Aldoroty2022': mine
+    'nodm15': mine but without the dm15 term. If using this, for dm15 and edm15 arguments,
+    use any array with len(bbv). This may be filled with any values, e.g., 0 or 1.
     """
-
 
     cosmo = FlatLambdaCDM(H0=70,Om0=0.3)
     mu = cosmo.distmod(zcmb).value
@@ -48,6 +49,12 @@ def cmagicmodel(bbv,ebbv,bmax,ebmax,dm15,edm15,slope,eslope,zcmb,model='He2018')
                 dbmax = -(b2 - SLOPE[i])/SLOPE[i]
                 dslope = b2*(BMAX[i] - BBV[i])/SLOPE[i]**2 - color_avg
                 denom = np.sqrt(EBBV[i]**2*dbbv**2 + EDM15[i]**2*ddm15**2 + EBMAX[i]**2*dbmax**2 + ESLOPE[i]**2*dslope**2 + EVPEC[i]**2)
+            elif model=='nodm15':
+                num = MU[i] - (BBV[i] - M - (b2 - SLOPE[i])*((BMAX[i]-BBV[i])/SLOPE[i] - color_avg))
+                dbbv = b2/SLOPE[i]
+                dbmax = -(b2 - SLOPE[i])/SLOPE[i]
+                dslope = b2*(BMAX[i] - BBV[i])/SLOPE[i]**2 - color_avg
+                denom = np.sqrt(EBBV[i]**2*dbbv**2 + EBMAX[i]**2*dbmax**2 + ESLOPE[i]**2*dslope**2 + EVPEC[i]**2)
 
             devs[i] = num/denom
         user_dict["deviates"] = devs
@@ -56,6 +63,9 @@ def cmagicmodel(bbv,ebbv,bmax,ebmax,dm15,edm15,slope,eslope,zcmb,model='He2018')
     if model == 'He2018' or model == 'Aldoroty2022':
         theta = np.array([-19,0.15,1.8])   
         user_data = {"bbv": bbv, "ebbv": ebbv, "bmax": bmax, "ebmax": ebmax, "dm15": dm15, "edm15": edm15, "slope": slope, "eslope": eslope, "evpec": evpec, "mu": mu} 
+    elif model == 'nodm15':
+        theta = np.array([-19,1])
+        user_data = user_data = {"bbv": bbv, "ebbv": ebbv, "bmax": bmax, "ebmax": ebmax, "slope": slope, "eslope": eslope, "evpec": evpec, "mu": mu} 
     m, n = len(bbv), len(theta)
        
     py_mp_par = list(pycmpfit.MpPar() for i in range(n))
@@ -75,6 +85,8 @@ def cmagicmodel(bbv,ebbv,bmax,ebmax,dm15,edm15,slope,eslope,zcmb,model='He2018')
         jac = np.array([-1, -(dm15 - dm15_avg), -((bmax - bbv)/slope + 1.2*(1/slope - np.mean(1/slope)))])
     elif model=='Aldoroty2022':
         jac = np.array([-1, -(dm15 - dm15_avg), -((bmax - bbv)/slope - color_avg)])
+    elif model=='nodm15':
+        jac = np.array([-1, -((bmax - bbv)/slope - color_avg)])
     err = np.sqrt(np.matmul(jac, np.matmul(covariance_matrix,jac.T)) + evpec**2)
     
     return theta_fin, err, dof, chisq
