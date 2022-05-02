@@ -164,13 +164,11 @@ def synth_lc_sdss(wave,flux,var,standard='sdss'):
             'z': 11.8525822106}
 
     for band in photometry:
-        responsefunc = pd.read_csv(os.path.join(dirname,f'sdss_filters/{band}6.dat'), delimiter=' ')
-        # if convert_to_ergs:
-        #     responsefunc['%s' % band] = h*c*responsefunc['%s' % band]
-        #     normalization_const = responsefunc['%s' % band].max()
-        #     responsefunc['%s' % band] = responsefunc['%s' % band]/normalization_const
-
+        responsefunc = pd.read_csv(os.path.join(dirname,f'sdss_filters/{band}6.dat'))
         responsefunc_interp = interp1d(responsefunc['lam_%s' % band], responsefunc['%s' % band],kind='linear')
+        F = 0
+        var_F = 0
+        Fref = 0
 
         for i in range(len(wave)):
             if wave[i] > min(responsefunc['lam_%s' % band]) and wave[i] < max(responsefunc['lam_%s' % band]):

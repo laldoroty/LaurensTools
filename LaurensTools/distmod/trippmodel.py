@@ -62,4 +62,6 @@ def trippmodel(bmax,ebmax,c,ec,dm15,edm15,zcmb):
     jac = np.array([-1, -c+c_avg, -dm15+dm15_avg])
     err = np.sqrt(np.matmul(jac, np.matmul(covariance_matrix, jac.T)) + evpec**2)
     
+    # theta_fin is the final fit parameters, M, a, d
+    # err is the error on MU for EACH SN
     return theta_fin, err, dof, chisq

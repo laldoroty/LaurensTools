@@ -1,6 +1,6 @@
 """
 Use:
-> import LaurensTools.plotaesthetics
+> import LaurensTools.utils.plotaesthetics
 
 to set plot style globally.
 
