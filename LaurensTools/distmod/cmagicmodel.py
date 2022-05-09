@@ -58,7 +58,7 @@ def cmagicmodel(bbv,ebbv,bmax,ebmax,dm15,edm15,slope,eslope,zcmb,model='He2018')
                 num = MU[i] - (BBV[i] - M - (b2 - SLOPE[i])*((BMAX[i]-BBV[i])/SLOPE[i] - color_avg))
                 dbbv = b2/SLOPE[i]
                 dbmax = -(b2 - SLOPE[i])/SLOPE[i]
-                dslope = b2*(BMAX[i] - BBV[i])/SLOPE[i]**2 - color_avg
+                dslope = b2*(BMAX[i] - BBV[i])/SLOPE[i]**2 + color_avg
                 denom = np.sqrt(EBBV[i]**2*dbbv**2 + EBMAX[i]**2*dbmax**2 + ESLOPE[i]**2*dslope**2 + EVPEC[i]**2)
 
             devs[i] = num/denom
@@ -74,9 +74,12 @@ def cmagicmodel(bbv,ebbv,bmax,ebmax,dm15,edm15,slope,eslope,zcmb,model='He2018')
     m, n = len(bbv), len(theta)
        
     py_mp_par = list(pycmpfit.MpPar() for i in range(n))
-
+    
+    print('before fit')
     fit = pycmpfit.Mpfit(userfunc, m, theta, private_data=user_data, py_mp_par=py_mp_par)
+    print('after fit')
     fit.mpfit()  # NOTE now theta has been updated
+    print('update mpfit')
     mp_result = fit.result
     dof = mp_result.nfunc - mp_result.nfree
     chisq = mp_result.bestnorm
