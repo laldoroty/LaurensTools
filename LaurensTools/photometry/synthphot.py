@@ -44,7 +44,7 @@ def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
     
     return mag, emag
 
-def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True):
+def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True,normalize=False):
     """
     Make a synthetic magnitude from a spectrum using Bessel filters. 
     Vega is the only available standard, currently. 
@@ -57,6 +57,7 @@ def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True):
     flux -- Data spectrum flux
     var -- Data spectrum variance
     standard -- Which standard spectrum to use. Valid values are: ['vega'].
+    snail -- This is a RESCALE FACTOR. It should be whatever you rescaled the data spectrum by. 
     """
 
     h = 6.626E-27 # Planck constant, erg s
@@ -90,6 +91,9 @@ def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True):
                        'V': -0.023,
                        'R': -0.023,
                        'I': -0.023}
+
+    if normalize:
+        st_flux /= np.mean(st_flux)
     
     for band in photometry:
         if band == 'U':
@@ -123,7 +127,7 @@ def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True):
 
 def synth_lc_sdss(wave,flux,var,standard='sdss'):
     """
-    Make a synthetic magnitude from a spectrum using Bessel filters. 
+    Make a synthetic magnitude from a spectrum using SDSS filters. 
     Vega is the only available standard, currently. 
     Response function from: https://arxiv.org/abs/1002.3701 (http://www.ioa.s.u-tokyo.ac.jp/~doi/sdss/SDSSresponse.html)
 

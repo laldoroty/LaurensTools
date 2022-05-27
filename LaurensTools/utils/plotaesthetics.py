@@ -13,7 +13,7 @@ def update_rcParams(key, val):
     if key in rcParams:
         rcParams[key] = val
 
-update_rcParams('font.size', 18)
+update_rcParams('font.size', 20)
 update_rcParams('font.family', 'serif')
 update_rcParams('xtick.major.size', 8)
 update_rcParams('xtick.labelsize', 'large')
