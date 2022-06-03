@@ -71,3 +71,15 @@ def get_band_data(path):
         data_dict[band]['emag'] = np.array(data_dict[band]['emag'])
 
     return sn_name, float(redshift), ra, dec, data_dict
+
+def color_maxmag_cov(mmax_error, cov_matrix_output):
+    """
+    Returns the covariance between a color and the maximum magnitude in a photometric band.
+    e.g., cov(B-V, B) = cov(B, B) - cov(B, V)
+    You probbaly want to use 'max_model' in snpy for this. 
+
+    mmax_error -- cov(B, B). The magnitude error squared. eB**2.
+    cov_matrix_output -- the output from snpy in s.model.C['Bmax']['Vmax'].
+
+    """
+    return mmax_error**2 - cov_matrix_output

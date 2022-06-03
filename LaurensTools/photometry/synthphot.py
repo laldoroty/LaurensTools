@@ -6,6 +6,19 @@ from astropy.io import fits
 
 dirname = os.path.dirname(os.path.abspath(__file__))
 
+def load_vegaspec():
+    """
+    20220603 LNA
+    Loads the Vega spectrum into your code, wherever you are. 
+    
+    """
+    hdul=fits.open(os.path.join(dirname,'alpha_lyr_stis_010.fits'))
+    # Units are ergs/s/cm^2/AA
+    st_wav = hdul[1].data['WAVELENGTH']
+    st_flux = hdul[1].data['FLUX']
+    st_flux_error = np.sqrt(hdul[1].data['STATERROR']**2 + hdul[1].data['SYSERROR']**2)
+    return np.array(st_wav), np.array(st_flux), np.array(st_flux_error)
+
 def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
     """
     20210520 LNA
@@ -44,9 +57,9 @@ def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
     
     return mag, emag
 
-def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True,normalize=False):
+def synth_lc_bessell(wave,flux,var,standard='vega',convert_to_ergs=True,normalize=False):
     """
-    Make a synthetic magnitude from a spectrum using Bessel filters. 
+    Make a synthetic magnitude from a spectrum using Bessell filters. 
     Vega is the only available standard, currently. 
     Response function from: https://ui.adsabs.harvard.edu/abs/2012PASP..124..140B/abstract
     Zero points from table 3.
@@ -81,19 +94,17 @@ def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True,normalize
            'I': 4}
 
     if standard=='vega':
-        hdul=fits.open(os.path.join(dirname,'alpha_lyr_stis_010.fits'))
-        # Units are ergs/s/cm^2/AA
-        st_wav = hdul[1].data['WAVELENGTH']
-        st_flux = hdul[1].data['FLUX']
-        st_flux_error = np.sqrt(hdul[1].data['STATERROR']**2 + hdul[1].data['SYSERROR']**2)
+        # hdul=fits.open(os.path.join(dirname,'alpha_lyr_stis_010.fits'))
+        # # Units are ergs/s/cm^2/AA
+        # st_wav = hdul[1].data['WAVELENGTH']
+        # st_flux = hdul[1].data['FLUX']
+        # st_flux_error = np.sqrt(hdul[1].data['STATERROR']**2 + hdul[1].data['SYSERROR']**2)
+        st_wav, st_flux, st_flux_error = load_vegaspec()
         zeropoints = {'U': -0.023,
                        'B': -0.023,
                        'V': -0.023,
                        'R': -0.023,
                        'I': -0.023}
-
-    if normalize:
-        st_flux /= np.mean(st_flux)
     
     for band in photometry:
         if band == 'U':
@@ -121,6 +132,8 @@ def synth_lc_bessel(wave,flux,var,standard='vega',convert_to_ergs=True,normalize
                     Fref += st_flux[i]*responsefunc_interp(st_wav[i])*(st_wav[i]-st_wav[i-1])
 
             photometry[band] = -2.5*np.log10(F/Fref) + zeropoints[band]
+            if normalize:
+                photometry[band] /= np.mean(photometry[band])
             ephotometry[band] = np.sqrt((1.09/F)**2*var_F)
                 
     return photometry, ephotometry
@@ -155,11 +168,12 @@ def synth_lc_sdss(wave,flux,var,standard='sdss'):
            'z': 4}
 
     if standard=='sdss':
-        hdul=fits.open(os.path.join(dirname,'bd_17d4708_stisnic_007.fits'))
-        # Units are ergs/s/cm^2/AA
-        st_wav = hdul[1].data['WAVELENGTH']
-        st_flux = hdul[1].data['FLUX']
-        st_flux_error = np.sqrt(hdul[1].data['STATERROR']**2 + hdul[1].data['SYSERROR']**2)
+        # hdul=fits.open(os.path.join(dirname,'bd_17d4708_stisnic_007.fits'))
+        # # Units are ergs/s/cm^2/AA
+        # st_wav = hdul[1].data['WAVELENGTH']
+        # st_flux = hdul[1].data['FLUX']
+        # st_flux_error = np.sqrt(hdul[1].data['STATERROR']**2 + hdul[1].data['SYSERROR']**2)
+        st_wav, st_flux, st_flux_error = load_vegaspec()
         # Stole zeropoints from the SDSS file in SNooPy. 
         zeropoints = {'u': 12.4757864,
             'g': 14.2013159905,
