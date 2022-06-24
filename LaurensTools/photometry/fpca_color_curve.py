@@ -8,7 +8,7 @@ from scipy.interpolate import interp1d
 
 # print(pa.abspath(pycmpfit.__file__))
 """
-WARNING: THIS DOES NOT SEEM TO CONVERGE. DO NOT USE RIGHT NOW.
+
 """
 
 def get_template(band):
@@ -27,8 +27,18 @@ def get_template(band):
     fPCAfile = LCfPCA_dir + pctemp
     return fPCAfile
 
-def FITTER(PHA_phot, color_phot, ecolor_phot, PHA_grid=None, band_a=None, band_b=None):
+def FITTER(PHA_phot, color_phot, ecolor_phot, band_a=None, band_b=None):
+    """
+    LNA 20220623
 
+    Fits a color curve using fPCA templates from He et al. 2018.
+    
+    PHA_phot -- Phase of input photometry data.
+    color_phot -- B-V color for input data.
+    ecolor_phot -- error for the B-V color.
+    band_a -- First bandpass, usually B.
+    band_b -- Second bandpass, usually V.
+    """
     if band_a or band_b is None:
         end = 40.0
     elif band_a and band_b in ['B','V','R','I']:
@@ -36,8 +46,8 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, PHA_grid=None, band_a=None, band_b
     else:
         raise ValueError('Values for band_a and band_b can be None, B, V, R, or I.')
     
-    if PHA_grid is None:
-        PHA_grid = np.arange(-10.0,end,0.1)
+    # if PHA_grid is None:
+    #     PHA_grid = np.arange(-10.0,end,0.1)
 
     # Get the templates for band_a and band_b:
     AstBasis_a = Table.read(get_template(band_a), format='ascii')
@@ -101,7 +111,6 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, PHA_grid=None, band_a=None, band_b
         devs = np.zeros((m), dtype=np.float64)
         user_dict = {"deviates": None}
         for i in range(m):
-            print('iteration #', i)
             y_mod = modelcurve(X[i], theta)
             if not np.isnan(y_mod):
                 devs[i] = (Y[i] - y_mod) / eY[i]
@@ -137,10 +146,10 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, PHA_grid=None, band_a=None, band_b
     covariance_matrix = res[0].covar
 
     color_grid = [modelcurve(phase + theta_fin[0], theta_fin)
-                for phase in PHA_grid]
+                for phase in phaselist]
     days = phaselist.data.tolist()
 
-    lc_interp = interp1d(PHA_grid,color_grid)
+    lc_interp = interp1d(phaselist,color_grid)
 
     def e_cc():
     # Calculates the error for the entire color curve. 
@@ -154,4 +163,24 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, PHA_grid=None, band_a=None, band_b
         return np.array(cc_error)
 
     cc_error = e_cc()
-    return color_grid, theta_fin, errors, covariance_matrix, cc_error
+
+    def return_model_mag(phase, theta):
+        a0, b0 = 1.0, 1.0
+        tof, mof, a1, a2, a3, a4, b1, b2, b3, b4 = theta
+        VecP0_a = (imod0_a(phaselist))
+        VecP1_a = (imod1_a(phaselist))
+        VecP2_a = (imod2_a(phaselist))
+        VecP3_a = (imod3_a(phaselist))
+        VecP4_a = (imod4_a(phaselist))
+
+        VecP0_b = (imod0_b(phaselist))
+        VecP1_b = (imod1_b(phaselist))
+        VecP2_b = (imod2_b(phaselist))
+        VecP3_b = (imod3_b(phaselist))
+        VecP4_b = (imod4_b(phaselist))
+        y = mof + a0*VecP0_a + a1*VecP1_a + a2*VecP2_a + a3*VecP3_a + a4*VecP4_a 
+        + b0*VecP0_b + b1*VecP1_b + b2*VecP2_b + b3*VecP3_b + b4*VecP4_b
+        return y
+
+
+    return color_grid, phaselist, theta_fin, errors, covariance_matrix, cc_error
