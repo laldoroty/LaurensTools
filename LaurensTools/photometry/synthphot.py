@@ -4,14 +4,13 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from astropy.io import fits
 
-dirname = os.path.dirname(os.path.abspath(__file__))
-
 def load_vegaspec():
     """
     20220603 LNA
     Loads the Vega spectrum into your code, wherever you are. 
     
     """
+    dirname = os.path.dirname(os.path.abspath(__file__))
     hdul=fits.open(os.path.join(dirname,'alpha_lyr_stis_010.fits'))
     # Units are ergs/s/cm^2/AA
     st_wav = hdul[1].data['WAVELENGTH']
@@ -76,6 +75,21 @@ def synth_lc_bessell(wave,flux,var,standard='vega',convert_to_ergs=True,normaliz
     h = 6.626E-27 # Planck constant, erg s
     c = 3E10 # Speed of light, cm/s
     
+    if standard=='vega':
+        # hdul=fits.open(os.path.join(dirname,'alpha_lyr_stis_010.fits'))
+        # # Units are ergs/s/cm^2/AA
+        # st_wav = hdul[1].data['WAVELENGTH']
+        # st_flux = hdul[1].data['FLUX']
+        # st_flux_error = np.sqrt(hdul[1].data['STATERROR']**2 + hdul[1].data['SYSERROR']**2)
+        st_wav, st_flux, st_flux_error = load_vegaspec()
+        zeropoints = {'U': -0.023,
+                       'B': -0.023,
+                       'V': -0.023,
+                       'R': -0.023,
+                       'I': -0.023}
+
+    dirname = os.path.dirname(os.path.abspath(__file__))
+    dirname = os.path.join(dirname,'filters')
     responsefunc = pd.read_csv(os.path.join(dirname,'bessel_simon_2012_UBVRI_response.csv'))
     photometry = {'U': None,
            'B': None,
@@ -93,18 +107,7 @@ def synth_lc_bessell(wave,flux,var,standard='vega',convert_to_ergs=True,normaliz
            'R': 3,
            'I': 4}
 
-    if standard=='vega':
-        # hdul=fits.open(os.path.join(dirname,'alpha_lyr_stis_010.fits'))
-        # # Units are ergs/s/cm^2/AA
-        # st_wav = hdul[1].data['WAVELENGTH']
-        # st_flux = hdul[1].data['FLUX']
-        # st_flux_error = np.sqrt(hdul[1].data['STATERROR']**2 + hdul[1].data['SYSERROR']**2)
-        st_wav, st_flux, st_flux_error = load_vegaspec()
-        zeropoints = {'U': -0.023,
-                       'B': -0.023,
-                       'V': -0.023,
-                       'R': -0.023,
-                       'I': -0.023}
+
     
     for band in photometry:
         if band == 'U':
@@ -180,6 +183,9 @@ def synth_lc_sdss(wave,flux,var,standard='sdss'):
             'r': 14.2156544329,
             'i': 13.7775438954,
             'z': 11.8525822106}
+
+    dirname = os.path.dirname(os.path.abspath(__file__))
+    dirname = os.path.join(dirname,'filters')
 
     for band in photometry:
         responsefunc = pd.read_csv(os.path.join(dirname,f'sdss_filters/{band}6.dat'))
