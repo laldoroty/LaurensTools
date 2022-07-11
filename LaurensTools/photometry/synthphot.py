@@ -69,6 +69,7 @@ def synth_lc_bessell(wave,flux,var,standard='vega',convert_to_ergs=True,normaliz
     flux -- Data spectrum flux
     var -- Data spectrum variance
     standard -- Which standard spectrum to use. Valid values are: ['vega'].
+    convert_to_ergs -- "False" if need photon count units. "True" if need ergs, because the response function is normalized photon counts. 
     snail -- This is a RESCALE FACTOR. It should be whatever you rescaled the data spectrum by. 
     """
 
@@ -107,8 +108,6 @@ def synth_lc_bessell(wave,flux,var,standard='vega',convert_to_ergs=True,normaliz
            'R': 3,
            'I': 4}
 
-
-    
     for band in photometry:
         if band == 'U':
             photometry[band] = 0

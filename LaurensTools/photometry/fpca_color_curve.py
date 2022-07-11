@@ -11,18 +11,17 @@ from scipy.interpolate import interp1d
 
 """
 
-def get_template(band):
+def get_template(band_a,band_b):
     CDIR = pa.dirname(pa.abspath(__file__))
     LCfPCA_dir = os.path.join(CDIR, 'LCfPCA_He')
     # r_vals = [4.1, 3.1, 2.33, 1.48]
     bandlist = ['B', 'V', 'R', 'I']
 
-    if band.upper() in bandlist:
-        pctemp = '/bandSpecific_%s.txt' % band.upper()
+    if band_a.upper() in bandlist or band_b.upper() in bandlist:
+        pctemp = f'/colormodel_{band_a.upper()}{band_b.upper()}.txt'
         # r = r_vals[bandlist.index(band.upper())]
     else:
-        pctemp = '/bandVague.txt'
-        r = 1
+        raise ValueError('Only B-V, B-R, and B-I colors are available.')
 
     fPCAfile = LCfPCA_dir + pctemp
     return fPCAfile
@@ -50,8 +49,7 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, band_a=None, band_b=None):
     #     PHA_grid = np.arange(-10.0,end,0.1)
 
     # Get the templates for band_a and band_b:
-    AstBasis_a = Table.read(get_template(band_a), format='ascii')
-    AstBasis_b = Table.read(get_template(band_b), format='ascii')
+    AstBasis_a = Table.read(get_template(band_a,band_b), format='ascii')
 
     # Make Interpolation Models for band_a
     phaselist = AstBasis_a['phase']   # Phase relative Maximum of this passband
@@ -67,25 +65,12 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, band_a=None, band_b=None):
     imod3_a = interp1d(phaselist, BsVec3_a, fill_value='extrapolate')
     imod4_a = interp1d(phaselist, BsVec4_a, fill_value='extrapolate')
 
-    # Make Interpolation Models for band_b
-    BsVec0_b = AstBasis_b['mean']
-    BsVec1_b = AstBasis_b['FPC1']
-    BsVec2_b = AstBasis_b['FPC2']
-    BsVec3_b = AstBasis_b['FPC3']
-    BsVec4_b = AstBasis_b['FPC4']
-
-    imod0_b = interp1d(phaselist, BsVec0_b, fill_value='extrapolate')
-    imod1_b = interp1d(phaselist, BsVec1_b, fill_value='extrapolate')
-    imod2_b = interp1d(phaselist, BsVec2_b, fill_value='extrapolate')
-    imod3_b = interp1d(phaselist, BsVec3_b, fill_value='extrapolate')
-    imod4_b = interp1d(phaselist, BsVec4_b, fill_value='extrapolate')
-
     # m: Number of samples [len(X_obs)]
     # n: Number of parameters of the function [len(theta)]
 
     def modelcurve(phase, theta):
         a0, b0 = 1.0, 1.0
-        tof, mof, a1, a2, a3, a4, b1, b2, b3, b4 = theta
+        tof, mof, a1, a2, a3, a4 = theta
         mphase = phase-tof
         # Note fPCA effective mphase [-9.0, 40.0]  # WARNING: you may redefine this !
         if mphase >= -10.0 and mphase <= end:
@@ -95,13 +80,7 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, band_a=None, band_b=None):
             VecP3_a = float(imod3_a(mphase))
             VecP4_a = float(imod4_a(mphase))
 
-            VecP0_b = float(imod0_b(mphase))
-            VecP1_b = float(imod1_b(mphase))
-            VecP2_b = float(imod2_b(mphase))
-            VecP3_b = float(imod3_b(mphase))
-            VecP4_b = float(imod4_b(mphase))
             y = mof + a0*VecP0_a + a1*VecP1_a + a2*VecP2_a + a3*VecP3_a + a4*VecP4_a 
-            + b0*VecP0_b + b1*VecP1_b + b2*VecP2_b + b3*VecP3_b + b4*VecP4_b
         else:
             y = np.nan
         return y
@@ -122,16 +101,18 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, band_a=None, band_b=None):
     def LSFit(X_obs, Y_obs, eY_obs, theta):
         m, n = len(X_obs), len(theta)
         user_data = {"x": X_obs, "y": Y_obs, "ey": eY_obs}
-        py_mp_par = list(pycmpfit.MpPar() for i in range(10))
+        py_mp_par = list(pycmpfit.MpPar() for i in range(6))
         py_mp_par[0].limited[0] = 1
         py_mp_par[0].limited[1] = 1
         py_mp_par[0].limits[0] = -10.0
         py_mp_par[0].limits[1] = 10.0
         # Use only the first two PC components for each color:
-        py_mp_par[5].fixed = 0
-        py_mp_par[4].fixed = 0
-        py_mp_par[8].fixed = 0
-        py_mp_par[9].fixed = 0
+        # py_mp_par[5].fixed = 1
+        # py_mp_par[4].fixed = 1
+        # py_mp_par[6].fixed = 0
+        # py_mp_par[7].fixed = 0
+        # py_mp_par[8].fixed = 1
+        # py_mp_par[9].fixed = 1
 
         fit = pycmpfit.Mpfit(userfunc, m, theta,
                              private_data=user_data, py_mp_par=py_mp_par)
@@ -139,7 +120,7 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, band_a=None, band_b=None):
         mp_result = fit.result
         return mp_result, theta
 
-    theta = np.array([0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])   # trivial initial guess
+    theta = np.array([0.0, 1.0, 0.0, 0.0, 0.0, 0.0])   # trivial initial guess
     res = LSFit(X_obs=PHA_phot, Y_obs=color_phot, eY_obs=ecolor_phot, theta=theta)
     theta_fin = res[1]
     errors = res[0].xerror
@@ -155,7 +136,7 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, band_a=None, band_b=None):
     # Calculates the error for the entire color curve. 
         dq0 = 0
         all_the_jacobians = np.column_stack(
-            (np.zeros(len(phaselist)), np.ones(len(phaselist)), BsVec1_a, BsVec2_a, BsVec3_a, BsVec4_a, BsVec1_b, BsVec2_b, BsVec3_b, BsVec4_b))
+            (np.zeros(len(phaselist)), np.ones(len(phaselist)), BsVec1_a, BsVec2_a, BsVec3_a, BsVec4_a))
         cc_error = []
         for jac in all_the_jacobians:
             j = np.sqrt(np.matmul(jac,np.matmul(covariance_matrix,np.transpose(jac))))
@@ -164,23 +145,23 @@ def FITTER(PHA_phot, color_phot, ecolor_phot, band_a=None, band_b=None):
 
     cc_error = e_cc()
 
-    def return_model_mag(phase, theta):
-        a0, b0 = 1.0, 1.0
-        tof, mof, a1, a2, a3, a4, b1, b2, b3, b4 = theta
-        VecP0_a = (imod0_a(phaselist))
-        VecP1_a = (imod1_a(phaselist))
-        VecP2_a = (imod2_a(phaselist))
-        VecP3_a = (imod3_a(phaselist))
-        VecP4_a = (imod4_a(phaselist))
+    # def return_model_mag(phase, theta):
+    #     a0, b0 = 1.0, 1.0
+    #     tof, mof, a1, a2, a3, a4, b1, b2, b3, b4 = theta
+    #     VecP0_a = (imod0_a(phaselist))
+    #     VecP1_a = (imod1_a(phaselist))
+    #     VecP2_a = (imod2_a(phaselist))
+    #     VecP3_a = (imod3_a(phaselist))
+    #     VecP4_a = (imod4_a(phaselist))
 
-        VecP0_b = (imod0_b(phaselist))
-        VecP1_b = (imod1_b(phaselist))
-        VecP2_b = (imod2_b(phaselist))
-        VecP3_b = (imod3_b(phaselist))
-        VecP4_b = (imod4_b(phaselist))
-        y = mof + a0*VecP0_a + a1*VecP1_a + a2*VecP2_a + a3*VecP3_a + a4*VecP4_a 
-        + b0*VecP0_b + b1*VecP1_b + b2*VecP2_b + b3*VecP3_b + b4*VecP4_b
-        return y
+    #     VecP0_b = (imod0_b(phaselist))
+    #     VecP1_b = (imod1_b(phaselist))
+    #     VecP2_b = (imod2_b(phaselist))
+    #     VecP3_b = (imod3_b(phaselist))
+    #     VecP4_b = (imod4_b(phaselist))
+    #     y = mof + a0*VecP0_a + a1*VecP1_a + a2*VecP2_a + a3*VecP3_a + a4*VecP4_a 
+    #     + b0*VecP0_b + b1*VecP1_b + b2*VecP2_b + b3*VecP3_b + b4*VecP4_b
+    #     return y
 
 
     return color_grid, phaselist, theta_fin, errors, covariance_matrix, cc_error
