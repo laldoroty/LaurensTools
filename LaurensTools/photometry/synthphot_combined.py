@@ -152,9 +152,9 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',convert_to_ergs=False):
 
         for band in filters:
             if convert_to_ergs:
-                responsefunc['%s' % band] = h*c*responsefunc['%s' % band]
-                normalization_const = responsefunc['%s' % band].max()
-                responsefunc['%s' % band] = responsefunc['%s' % band]/normalization_const
+                responsefunc[band]['transmission'] = h*c*responsefunc[band]['transmission']
+                normalization_const = responsefunc[band].max()
+                responsefunc[band]['transmission'] = responsefunc[band]['transmission']/normalization_const
 
             responsefunc_interp = interp1d(responsefunc[band]['wavelength'], responsefunc[band]['transmission'],kind='linear')
 
