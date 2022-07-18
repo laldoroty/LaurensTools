@@ -34,8 +34,9 @@ def load_filtersys(sys):
     filtersys = {}
 
     if sys == 'bessell':
+        # NOTE: Built-in Bessell filters are normalized photons/cm^2/s/A.
         filters = ['U','B','V','R','I']
-        responsefunc = pd.read_csv(os.path.join(dirname,'bessel_simon_2012_UBVRI_response.csv'))
+        responsefunc = pd.read_csv(os.path.join(dirname,'filters/bessel_simon_2012_UBVRI_response.csv'))
         zeropoints = {'U': -0.023,
                        'B': -0.023,
                        'V': -0.023,
@@ -57,16 +58,22 @@ def load_filtersys(sys):
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
 
     elif sys == 'lsst':
+        # LSST filters are given in photon count transmission.
         zeropoints = {}
         filters = ['u','g','r','i','z','y']
+        # ZPs are in wavelength units, not frequency. And Vega system.
+        zps = [4.45E-9,5.22E-9,2.46E-9,1.37E-9,9.04E-10,6.95E-10]
         for band in filters:
             responsefunc = pd.read_csv(os.path.join(dirname,f'filters/lsst_filters/full/LSST_LSST.{band}.dat'),sep=' ')
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
             zeropoints[band] = 0.0
 
     elif sys == 'lsst_filteronly':
+        # LSST filters are given in photon count transmission. 
         zeropoints = {}
         filters = ['u','g','r','i','z','y']
+        # ZPs are in wavelength units, not frequency. And Vega system.
+        zps = [3.99E-9,5.31E-9,2.48E-9,1.37E-9,9.02E-10,6.17E-10]
         for band in filters:
             responsefunc = pd.read_csv(os.path.join(dirname,f'filters/lsst_filters/filter_only/LSST_LSST.{band}_filter.dat'), sep=' ')
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
@@ -149,15 +156,15 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',convert_to_ergs=False):
                 normalization_const = responsefunc['%s' % band].max()
                 responsefunc['%s' % band] = responsefunc['%s' % band]/normalization_const
 
-            responsefunc_interp = interp1d(responsefunc['lam_%s' % band], responsefunc['%s' % band],kind='linear')
+            responsefunc_interp = interp1d(responsefunc[band]['wavelength'], responsefunc[band]['transmission'],kind='linear')
 
             for i in range(len(wave)):
-                if wave[i] > min(responsefunc['lam_%s' % band]) and wave[i] < max(responsefunc['lam_%s' % band]):
+                if wave[i] > min(responsefunc[band]['wavelength']) and wave[i] < max(responsefunc[band]['wavelength']):
                     F += flux[i]*responsefunc_interp(wave[i])*(wave[i]-wave[i-1])
                     var_F += var[i]*responsefunc_interp(wave[i])**2*(wave[i]-wave[i-1])**2
 
             for i in range(len(st_wav)):
-                if st_wav[i] > min(responsefunc['lam_%s' % band]) and st_wav[i] < max(responsefunc['lam_%s' % band]):
+                if st_wav[i] > min(responsefunc[band]['wavelength']) and st_wav[i] < max(responsefunc[band]['wavelength']):
                     Fref += st_flux[i]*responsefunc_interp(st_wav[i])*(st_wav[i]-st_wav[i-1])
 
             photometry[band] = -2.5*np.log10(F/Fref) + zeropoints[band]

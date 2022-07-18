@@ -5,9 +5,10 @@ def weighted_expectation(xi,exi):
     """
     LNA 20220711
     Calculate the weighted expectation value of X.
+    (AKA weighted mean.)
     xi -- array of data 
     exi -- array of data errors (square root of variance)
-    
+
     """
     xi,exi = np.array(xi),np.array(exi)
     return np.sum(xi/exi**2)/np.sum(1/exi**2)
@@ -15,6 +16,7 @@ def weighted_expectation(xi,exi):
 def weighted_corr(xi,yi,exi,eyi):
     """
     Pearson Correlation coefficient, weighted by errors.
+    THIS, AS IT EXISTS, NEEDS TO BE CHECKED FOR CORRECTNESS. 
     xi -- data for random variable X
     yi -- data for random variable Y
     exi -- errors for xi
@@ -22,6 +24,7 @@ def weighted_corr(xi,yi,exi,eyi):
 
     """
     xi,yi,exi,eyi = np.array(xi),np.array(yi),np.array(exi),np.array(eyi)
+    assert len(xi) == len(yi) and len(xi) == len(exi) and len(xi) == len(eyi),f'Arrays not of equal length. Array lengths are {len(xi)}, {len(yi)}, {len(exi)}, {len(eyi)}.'
 
     # Calculate weighted expectation values 
     # of each RV, X and Y: 
@@ -42,9 +45,13 @@ def weighted_corr(xi,yi,exi,eyi):
     covXY = weighted_expectation(X_EX*Y_EY,err_covarg_XY)
     covXX = weighted_expectation(X_EX**2,err_covarg_XX)
     covYY = weighted_expectation(Y_EY**2,err_covarg_YY)
+    print('covXY, covXX, covYY')
+    print(covXY)
+    print(covXX)
+    print(covYY)
 
     # Now, we can calculate the weighted correlation coefficient.
-    rho = covXY/(covXX*covYY)
+    rho = covXY/np.sqrt(covXX*covYY)
 
     # We can also compute the associated p-value using a 
     # two-sided t-test.
@@ -52,5 +59,4 @@ def weighted_corr(xi,yi,exi,eyi):
     p = stdtr(len(xi)-2,-np.abs(t))*2 # Args are (degrees of freedom, integration limits).
 
     return rho, p
-
 
