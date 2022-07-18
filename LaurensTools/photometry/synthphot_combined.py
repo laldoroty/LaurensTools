@@ -35,49 +35,51 @@ def load_filtersys(sys):
 
     if sys == 'bessell':
         # NOTE: Built-in Bessell filters are normalized photons/cm^2/s/A.
-        filters = ['U','B','V','R','I']
         responsefunc = pd.read_csv(os.path.join(dirname,'filters/bessel_simon_2012_UBVRI_response.csv'))
         zeropoints = {'U': -0.023,
                        'B': -0.023,
                        'V': -0.023,
                        'R': -0.023,
                        'I': -0.023}
-        for band in filters:
+        for band in zeropoints.keys():
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
 
     elif sys == 'sdss':
-        filters = ['u','g','r','i','z']
         zeropoints = {'u': 12.4757864,
         'g': 14.2013159905,
         'r': 14.2156544329,
         'i': 13.7775438954,
         'z': 11.8525822106}
 
-        for band in filters:
+        for band in zeropoints.keys():
             responsefunc = pd.read_csv(os.path.join(dirname,f'filters/sdss_filters/{band}6.dat'))
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
 
     elif sys == 'lsst':
         # LSST filters are given in photon count transmission.
-        zeropoints = {}
-        filters = ['u','g','r','i','z','y']
         # ZPs are in wavelength units, not frequency. And Vega system.
-        zps = [4.45E-9,5.22E-9,2.46E-9,1.37E-9,9.04E-10,6.95E-10]
-        for band in filters:
+        zeropoints = {'u': 4.45E-9,
+        'g': 5.22E-9,
+        'r': 2.46E-9,
+        'i': 1.37E-9,
+        'z': 9.04E-10,
+        'y': 6.95E-10}
+        for band in zeropoints.keys():
             responsefunc = pd.read_csv(os.path.join(dirname,f'filters/lsst_filters/full/LSST_LSST.{band}.dat'),sep=' ')
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
-            zeropoints[band] = 0.0
 
     elif sys == 'lsst_filteronly':
         # LSST filters are given in photon count transmission. 
-        zeropoints = {}
-        filters = ['u','g','r','i','z','y']
         # ZPs are in wavelength units, not frequency. And Vega system.
-        zps = [3.99E-9,5.31E-9,2.48E-9,1.37E-9,9.02E-10,6.17E-10]
-        for band in filters:
+        zeropoints = {'u': 3.99E-9,
+        'g': 5.31E-9,
+        'r': 2.48E-9,
+        'i': 1.37E-9,
+        'z': 9.02E-10,
+        'y': 6.17E-10}
+        for band in zeropoints.keys():
             responsefunc = pd.read_csv(os.path.join(dirname,f'filters/lsst_filters/filter_only/LSST_LSST.{band}_filter.dat'), sep=' ')
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
-            zeropoints[band] = 0.0
 
     return filtersys, zeropoints
 
