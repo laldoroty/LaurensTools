@@ -122,7 +122,7 @@ def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
     
     return mag, emag
 
-def synth_lc(wave,flux,var,sys=None,standard='vega',convert_to_ergs=False):
+def synth_lc(wave,flux,var,sys=None,standard='vega',convert_spec=None,convert_response=None):
     """
     Make a synthetic magnitude from a spectrum using Bessell, SDSS, or LSST filters. 
     Vega is the only available standard, currently. 
@@ -133,6 +133,8 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',convert_to_ergs=False):
     var -- Data spectrum variance
     sys -- Which filter system to use. Valid values are: ['bessell', 'sdss', 'lsst', 'lsst_filteronly'].
     standard -- Which standard spectrum to use. Valid values are: ['vega'].
+    convert_spec -- 'ergs' or 'photons'. 'ergs' converts the input data spectrum to ergs. 'photons' converts it to photons. 
+    convert_response -- 'ergs' or 'photons'. 'ergs' converts the response function to ergs. 'photons' converts it to photons. 
     """
 
     if sys is None:
@@ -148,15 +150,34 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',convert_to_ergs=False):
         responsefunc, zeropoints = load_filtersys(sys)
         filters = [x for x in responsefunc.keys()]
 
+        if convert_spec == 'ergs':
+            flux *= h*c/wave
+            # Vega spectrum already in ergs. 
+        elif convert_spec == 'photons':
+            flux /= h*c/wave
+            st_flux /= h*c/wave
+        elif convert_spec is None:
+            print('Data spectrum units not converted.')
+        else: 
+            assert convert_spec is not None and convert_spec != 'ergs' and convert_spec != 'photons', "Acceptable inputs for convert_spec are ergs or photons!" 
+
         F = 0
         Fref = 0
         var_F = 0
 
         for band in filters:
-            if convert_to_ergs:
-                responsefunc[band]['transmission'] = h*c*responsefunc[band]['transmission']
+            if convert_response == 'ergs':
+                responsefunc[band]['transmission'] *= h*c/responsefunc[band]['wavelength']
                 normalization_const = responsefunc[band]['transmission'].max()
-                responsefunc[band]['transmission'] = responsefunc[band]['transmission']/normalization_const
+                responsefunc[band]['transmission'] /= normalization_const
+            elif convert_response == 'photons':
+                responsefunc[band]['transmission'] /= h*c/responsefunc[band]['wavelength']
+                normalization_const = responsefunc[band]['transmission'].max()
+                responsefunc[band]['transmission'] /= normalization_const
+            elif convert_response is None:
+                print('Response function units not converted.')
+            else: 
+                assert convert_response is not None and convert_response != 'ergs' and convert_response != 'photons', "Acceptable inputs for convert_response are ergs or photons!" 
 
             responsefunc_interp = interp1d(responsefunc[band]['wavelength'], responsefunc[band]['transmission'],kind='linear')
 
