@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.special import stdtr
-from scipy.stats import ks_2samp
+# from scipy.stats import ks_2samp
 
 def weighted_expectation(xi,exi):
     """
@@ -29,6 +29,10 @@ def weighted_covariance(xi,yi,exi,eyi):
     """
     LNA 20200720
     Returns the weighted covariance of two quantities.
+    xi -- data for random variable X
+    yi -- data for random variable Y
+    exi -- errors for xi
+    eyi -- errors for yi
 
     """
     xi,yi,exi,eyi = np.array(xi),np.array(yi),np.array(exi),np.array(eyi)
@@ -77,10 +81,6 @@ def weighted_corr(xi,yi,exi,eyi):
 
     # Great, now we can calculate the covariance for X and Y:
     covXY = weighted_covariance(xi,yi,exi,eyi)
-    print('covXY, covXX, covYY')
-    print(covXY)
-    print(weighted_variance(xi,exi))
-    print(weighted_variance(yi,eyi))
 
     # Now, we can calculate the weighted correlation coefficient.
     rho = covXY/np.sqrt(weighted_variance(xi,exi)*weighted_variance(yi,eyi))
