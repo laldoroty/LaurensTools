@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.special import stdtr
+from scipy.stats import ks_2samp
 
 def weighted_expectation(xi,exi):
     """
@@ -13,10 +14,45 @@ def weighted_expectation(xi,exi):
     xi,exi = np.array(xi),np.array(exi)
     return np.sum(xi/exi**2)/np.sum(1/exi**2)
 
+def weighted_variance(xi,exi):
+    """
+    LNA 20220720
+    Returns the variance of a weighted mean.
+    xi -- array of data
+    exi -- array of data errors (square root of variance)
+
+    """
+    xi,exi = np.array(xi),np.array(exi)
+    return (1/np.sum(1/exi**2))*np.sum((1/exi**2)*(xi-weighted_expectation(xi,exi))**2)
+
+def weighted_covariance(xi,yi,exi,eyi):
+    """
+    LNA 20200720
+    Returns the weighted covariance of two quantities.
+
+    """
+    xi,yi,exi,eyi = np.array(xi),np.array(yi),np.array(exi),np.array(eyi)
+    # Calculate weighted expectation values 
+    # of each RV, X and Y: 
+    EX = weighted_expectation(xi,exi)
+    EY = weighted_expectation(yi,eyi)
+
+    # Arguments to make cov(X,Y), i.e., 
+    # cov(X,Y) = E((X-E(X))(Y-E(Y)))
+    X_EX = xi-EX
+    Y_EY = yi-EY
+
+    cov_weights = 1/((yi-Y_EY)*exi**2 + (xi-X_EX)*eyi**2)
+
+    numerator = np.sum(cov_weights*X_EX*Y_EY)
+    denominator = np.sum(cov_weights)
+
+    return numerator/denominator
+
 def weighted_corr(xi,yi,exi,eyi):
     """
     Pearson Correlation coefficient, weighted by errors.
-    THIS, AS IT EXISTS, NEEDS TO BE CHECKED FOR CORRECTNESS. 
+
     xi -- data for random variable X
     yi -- data for random variable Y
     exi -- errors for xi
@@ -36,22 +72,18 @@ def weighted_corr(xi,yi,exi,eyi):
     X_EX = xi-EX
     Y_EY = yi-EY
 
-    # We also need the variance of this quantity:
-    err_covarg_XY = np.sqrt(Y_EY**2*exi**2 + X_EX**2*eyi**2)
-    err_covarg_XX = np.sqrt(2*(Y_EY**2*exi**2))
-    err_covarg_YY = np.sqrt(2*(X_EX**2*eyi**2))
+    # Variance for cov(X,X) and cov(Y,Y) are just the variances
+    # directly from your data. 
 
-    # Great, now we can calculate the covariances:
-    covXY = weighted_expectation(X_EX*Y_EY,err_covarg_XY)
-    covXX = weighted_expectation(X_EX**2,err_covarg_XX)
-    covYY = weighted_expectation(Y_EY**2,err_covarg_YY)
+    # Great, now we can calculate the covariance for X and Y:
+    covXY = weighted_covariance(xi,yi,exi,eyi)
     print('covXY, covXX, covYY')
     print(covXY)
-    print(covXX)
-    print(covYY)
+    print(weighted_variance(xi,exi))
+    print(weighted_variance(yi,eyi))
 
     # Now, we can calculate the weighted correlation coefficient.
-    rho = covXY/np.sqrt(covXX*covYY)
+    rho = covXY/np.sqrt(weighted_variance(xi,exi)*weighted_variance(yi,eyi))
 
     # We can also compute the associated p-value using a 
     # two-sided t-test.
@@ -60,3 +92,20 @@ def weighted_corr(xi,yi,exi,eyi):
 
     return rho, p
 
+# def weighted_ks_2samp(x,y,wx,wy):
+#     """
+#     Calculate the Kolmogorov-Smirnov statistic, modified to
+#     incorporate the weight of your samples.
+
+#     """
+#     idx_x, idx_y = np.argsort(x), np.argsort(y)
+#     x, y = x[idx_x], y[idx_y]
+#     wx, wy = wx[idx_x], wy[idx_y]
+
+#     xy = np.concatenate([x,y])
+
+
+
+
+#     cdf_x = np.searchsorted(x, xy, side='right')/len(x)
+#     cdf_y = np.searchsorted(y, xy, side='right')/len(y)
