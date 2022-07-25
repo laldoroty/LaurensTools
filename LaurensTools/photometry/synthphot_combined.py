@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 from astropy.io import fits
+import matplotlib.pyplot as plt
 
 dirname = os.path.dirname(os.path.abspath(__file__))
 
@@ -122,7 +123,7 @@ def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
     
     return mag, emag
 
-def synth_lc(wave,flux,var,sys=None,standard='vega',convert_spec=None,convert_response=None):
+def synth_lc(wave,flux,var,sys=None,standard='vega',spec_units='ergs'):
     """
     Make a synthetic magnitude from a spectrum using Bessell, SDSS, or LSST filters. 
     Vega is the only available standard, currently. 
@@ -141,7 +142,7 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',convert_spec=None,convert_re
         raise ValueError('Must specify filter system.')
 
     h = 6.626E-27 # Planck constant, erg s
-    c = 3E10 # Speed of light, cm/s
+    c = 3E18 # Speed of light, AA/s
     photometry = {}
     ephotometry = {}
 
@@ -150,41 +151,24 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',convert_spec=None,convert_re
         responsefunc, zeropoints = load_filtersys(sys)
         filters = [x for x in responsefunc.keys()]
 
-        if convert_spec == 'ergs':
-            flux *= h*c/wave
-            # Vega spectrum already in ergs. 
-        elif convert_spec == 'photons':
+        if spec_units == 'ergs':
+            print('Spectrum units ergs/cm^2/s/AA. Converting to photons.')
             flux /= h*c/wave
-            st_flux /= h*c/wave
-        elif convert_spec is None:
-            print('Data spectrum units not converted.')
-        else: 
-            assert convert_spec is not None and convert_spec != 'ergs' and convert_spec != 'photons', "Acceptable inputs for convert_spec are ergs or photons!" 
+            st_flux /= h*c/st_wav
 
         F = 0
         Fref = 0
         var_F = 0
 
         for band in filters:
-            if convert_response == 'ergs':
-                responsefunc[band]['transmission'] *= h*c/responsefunc[band]['wavelength']
-                normalization_const = responsefunc[band]['transmission'].max()
-                responsefunc[band]['transmission'] /= normalization_const
-            elif convert_response == 'photons':
-                responsefunc[band]['transmission'] /= h*c/responsefunc[band]['wavelength']
-                normalization_const = responsefunc[band]['transmission'].max()
-                responsefunc[band]['transmission'] /= normalization_const
-            elif convert_response is None:
-                print('Response function units not converted.')
-            else: 
-                assert convert_response is not None and convert_response != 'ergs' and convert_response != 'photons', "Acceptable inputs for convert_response are ergs or photons!" 
-
             responsefunc_interp = interp1d(responsefunc[band]['wavelength'], responsefunc[band]['transmission'],kind='linear')
 
             for i in range(len(wave)):
                 if wave[i] > min(responsefunc[band]['wavelength']) and wave[i] < max(responsefunc[band]['wavelength']):
                     F += flux[i]*responsefunc_interp(wave[i])*(wave[i]-wave[i-1])
                     var_F += var[i]*responsefunc_interp(wave[i])**2*(wave[i]-wave[i-1])**2
+
+            print('flux from LaurensTools', F)
 
             for i in range(len(st_wav)):
                 if st_wav[i] > min(responsefunc[band]['wavelength']) and st_wav[i] < max(responsefunc[band]['wavelength']):

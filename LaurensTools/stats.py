@@ -28,7 +28,9 @@ def weighted_variance(xi,exi):
 def weighted_covariance(xi,yi,exi,eyi):
     """
     LNA 20200720
-    Returns the weighted covariance of two quantities.
+    Returns the weighted covariance of two quantities,
+    i.e., the off-diagonal element of the symmetric 2x2 covariance matrix,
+    cov(X,Y).
     xi -- data for random variable X
     yi -- data for random variable Y
     exi -- errors for xi
@@ -36,22 +38,28 @@ def weighted_covariance(xi,yi,exi,eyi):
 
     """
     xi,yi,exi,eyi = np.array(xi),np.array(yi),np.array(exi),np.array(eyi)
+
     # Calculate weighted expectation values 
     # of each RV, X and Y: 
     EX = weighted_expectation(xi,exi)
     EY = weighted_expectation(yi,eyi)
-
-    # Arguments to make cov(X,Y), i.e., 
-    # cov(X,Y) = E((X-E(X))(Y-E(Y)))
     X_EX = xi-EX
     Y_EY = yi-EY
+    # print('EX', EX)
+    # print('EY', EY)
 
-    cov_weights = 1/((yi-Y_EY)*exi**2 + (xi-X_EX)*eyi**2)
+    # cov_weights = 1/((yi-EY)**2*exi**2 + (xi-EX)**2*eyi**2)  
+    # cov_weights /= np.sum(cov_weights)
+    # print('cov weights', cov_weights)  
 
-    numerator = np.sum(cov_weights*X_EX*Y_EY)
-    denominator = np.sum(cov_weights)
+    # numerator = np.sum(cov_weights*(xi-EX)*(yi-EY))
+    # print('numerator',numerator)
+    # denominator = np.sum(cov_weights)
+    # print('denominator',denominator)
 
-    return numerator/denominator
+    # return numerator/denominator
+
+    return weighted_expectation((X_EX*Y_EY),np.sqrt(Y_EY**2*exi**2+X_EX**2*eyi**2))
 
 def weighted_corr(xi,yi,exi,eyi):
     """
@@ -103,9 +111,6 @@ def weighted_corr(xi,yi,exi,eyi):
 #     wx, wy = wx[idx_x], wy[idx_y]
 
 #     xy = np.concatenate([x,y])
-
-
-
 
 #     cdf_x = np.searchsorted(x, xy, side='right')/len(x)
 #     cdf_y = np.searchsorted(y, xy, side='right')/len(y)
