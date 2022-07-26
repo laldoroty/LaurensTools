@@ -37,14 +37,23 @@ def load_filtersys(sys):
     if sys == 'bessell':
         # NOTE: Built-in Bessell filters are normalized photons/cm^2/s/A.
         responsefunc = pd.read_csv(os.path.join(dirname,'filters/bessel_simon_2012_UBVRI_response.csv'))
-        zeropoints = {'U': -0.023,
-                       'B': -0.023,
-                       'V': -0.023,
-                       'R': -0.023,
-                       'I': -0.023}
+        zeropoints = {'U': 0.0,
+                       'B': 0.0,
+                       'V': 0.0,
+                       'R': 0.0,
+                       'I': 0.0}
+
+        # THIS MAKES THIS ONLY WORK FOR VEGA MAGS RIGHT NOW. 
+        vwave,vflux,verr = load_vegaspec()
 
         for band in zeropoints.keys():
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
+            filter_interp = interp1d(responsefunc[f'lam_{band}'],responsefunc[f'{band}'],bounds_error=False)
+            dlam = np.diff(vwave)
+            filt = np.nan_to_num(filter_interp(vwave[1:]))
+            numerator = np.sum(vwave[1:]*filt*vflux[1:]*dlam)
+            denominator = np.sum(vwave[1:]*filt*dlam)
+            zeropoints[band] = -2.5*np.log10(numerator/denominator)
 
     elif sys == 'sdss':
         zeropoints = {'u': 12.4757864,
@@ -69,7 +78,7 @@ def load_filtersys(sys):
         for band in zeropoints.keys():
             responsefunc = pd.read_csv(os.path.join(dirname,f'filters/lsst_filters/full/LSST_LSST.{band}.dat'),sep=' ')
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
-            zeropoints[band] = -2.5*np.log10(zeropoints[band])
+            zeropoints[band] = 2.5*np.log10(zeropoints[band])
 
     elif sys == 'lsst_filteronly':
         # LSST filters are given in photon count transmission. 
@@ -83,6 +92,7 @@ def load_filtersys(sys):
         for band in zeropoints.keys():
             responsefunc = pd.read_csv(os.path.join(dirname,f'filters/lsst_filters/filter_only/LSST_LSST.{band}_filter.dat'), sep=' ')
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
+            zeropoints[band] = 2.5*np.log10(zeropoints[band])
 
     return filtersys, zeropoints
 
@@ -169,20 +179,17 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',spec_units='ergs'):
         F = 0
         Fref = 0
         var_F = 0
+        dlam = np.diff(wave)
+        st_dlam = np.diff(st_wav)
 
         for band in filters:
-            responsefunc_interp = interp1d(responsefunc[band]['wavelength'], responsefunc[band]['transmission'],kind='linear')
+            responsefunc_interp = interp1d(responsefunc[band]['wavelength'], responsefunc[band]['transmission'],kind='linear',bounds_error=False)
 
-            for i in range(len(wave)):
-                if wave[i] > min(responsefunc[band]['wavelength']) and wave[i] < max(responsefunc[band]['wavelength']):
-                    F += flux[i]*responsefunc_interp(wave[i])*wave[i]*(wave[i]-wave[i-1])
-                    var_F += wave[i]**2*var[i]*responsefunc_interp(wave[i])**2*(wave[i]-wave[i-1])**2
+            F = np.sum(flux[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])*wave[1:]*dlam)
+            var_F = np.sum(wave[1:]**2*var[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])**2*dlam**2)
+            Fref = np.sum(st_flux[1:]*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_wav[1:]*st_dlam)
 
-            for i in range(len(st_wav)):
-                if st_wav[i] > min(responsefunc[band]['wavelength']) and st_wav[i] < max(responsefunc[band]['wavelength']):
-                    Fref += st_flux[i]*responsefunc_interp(st_wav[i])*st_wav[i]*(st_wav[i]-st_wav[i-1])
-
-            photometry[band] = -2.5*np.log10(F/Fref) + zeropoints[band]
+            photometry[band] = -2.5*np.log10(F/Fref)
             ephotometry[band] = np.sqrt((1.09/F)**2*var_F)
                 
     return photometry, ephotometry
