@@ -42,6 +42,7 @@ def load_filtersys(sys):
                        'V': -0.023,
                        'R': -0.023,
                        'I': -0.023}
+
         for band in zeropoints.keys():
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
 
@@ -68,6 +69,7 @@ def load_filtersys(sys):
         for band in zeropoints.keys():
             responsefunc = pd.read_csv(os.path.join(dirname,f'filters/lsst_filters/full/LSST_LSST.{band}.dat'),sep=' ')
             filtersys[band] = {'wavelength': responsefunc[f'lam_{band}'], 'transmission': responsefunc[f'{band}']}
+            zeropoints[band] = -2.5*np.log10(zeropoints[band])
 
     elif sys == 'lsst_filteronly':
         # LSST filters are given in photon count transmission. 
@@ -126,6 +128,8 @@ def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
 def synth_lc(wave,flux,var,sys=None,standard='vega',spec_units='ergs'):
     """
     Make a synthetic magnitude from a spectrum using Bessell, SDSS, or LSST filters. 
+    Filters are provided in photon counts, so this code converts ergs to photons
+    for the input flux. 
     Vega is the only available standard, currently. 
 
     Keyword arguments:
@@ -138,6 +142,7 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',spec_units='ergs'):
     convert_response -- 'ergs' or 'photons'. 'ergs' converts the response function to ergs. 'photons' converts it to photons. 
     """
 
+    acceptable_spec_units = ['ergs','photons']
     if sys is None:
         raise ValueError('Must specify filter system.')
 
@@ -151,10 +156,15 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',spec_units='ergs'):
         responsefunc, zeropoints = load_filtersys(sys)
         filters = [x for x in responsefunc.keys()]
 
-        if spec_units == 'ergs':
-            print('Spectrum units ergs/cm^2/s/AA. Converting to photons.')
-            flux /= h*c/wave
-            st_flux /= h*c/st_wav
+        if spec_units in acceptable_spec_units:
+            if spec_units == 'ergs':
+                print('Spectrum units ergs/cm^2/s/AA. Converting to photons.')
+                flux /= h*c/wave
+                st_flux /= h*c/st_wav
+            elif spec_units == 'photons':
+                print('Spectrum units not converted; already in photons.')
+        else:
+            raise ValueError(f'Acceptable spec_units arguments are {acceptable_spec_units}.')
 
         F = 0
         Fref = 0
@@ -165,14 +175,12 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',spec_units='ergs'):
 
             for i in range(len(wave)):
                 if wave[i] > min(responsefunc[band]['wavelength']) and wave[i] < max(responsefunc[band]['wavelength']):
-                    F += flux[i]*responsefunc_interp(wave[i])*(wave[i]-wave[i-1])
-                    var_F += var[i]*responsefunc_interp(wave[i])**2*(wave[i]-wave[i-1])**2
-
-            print('flux from LaurensTools', F)
+                    F += flux[i]*responsefunc_interp(wave[i])*wave[i]*(wave[i]-wave[i-1])
+                    var_F += wave[i]**2*var[i]*responsefunc_interp(wave[i])**2*(wave[i]-wave[i-1])**2
 
             for i in range(len(st_wav)):
                 if st_wav[i] > min(responsefunc[band]['wavelength']) and st_wav[i] < max(responsefunc[band]['wavelength']):
-                    Fref += st_flux[i]*responsefunc_interp(st_wav[i])*(st_wav[i]-st_wav[i-1])
+                    Fref += st_flux[i]*responsefunc_interp(st_wav[i])*st_wav[i]*(st_wav[i]-st_wav[i-1])
 
             photometry[band] = -2.5*np.log10(F/Fref) + zeropoints[band]
             ephotometry[band] = np.sqrt((1.09/F)**2*var_F)
