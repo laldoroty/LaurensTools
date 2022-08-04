@@ -4,6 +4,15 @@ import pandas as pd
 from scipy.interpolate import interp1d
 from astropy.io import fits
 
+"""
+LNA 20220802
+This is a mess and is full of errors. Don't use it.
+It's only still here for compatibility reasons.
+Use: LaurensTools.photometry.synthphot_combined
+
+"""
+
+
 def load_vegaspec():
     """
     20220603 LNA

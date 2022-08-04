@@ -1,3 +1,18 @@
+import numpy as np
+
+def mag_err_to_flux_err(Fref,mref,m,em):
+    """
+    Convert magnitude error to flux error.
+    Useful for sncosmo.
+    Fref -- Reference flux
+        You can do MAGSYS.zpbandflux('band') in sncosmo for this.
+    mref -- reference magnitude
+        You can do MAGSYS.band_flux_to_mag(MAGSYS.zpbandflux('band'),'band') for this.
+    m -- data magnitude
+    em -- data magnitude error
+    """
+    return Fref*np.power(10,(mref-m)/2.5)*np.log(10)*em
+
 class constants:
     """
     Access constants easily. 

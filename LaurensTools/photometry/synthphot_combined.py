@@ -97,7 +97,7 @@ def load_filtersys(sys):
     return filtersys, zeropoints
 
 
-def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
+def synth_lc_tophat(wave,flux,var,lower_filter_edge=None,upper_filter_edge=None,standard='vega',spec_units='ergs'):
     """
     20210520 LNA
     Make a synthetic magnitude from a spectrum using a top hat filter.
@@ -108,30 +108,39 @@ def synth_lc_tophat(wave,flux,var,lower_filter_edge,upper_filter_edge,zp,ezp):
     var -- Spectrum variance
     lower_filter_edge -- Lower bound on top hat filter
     upper_filter_edge -- Upper bound on top hat filter
-    zp -- Zero point
-    ezp -- Zero point error
 
     """
-    int_ = []
-    var_ = []
-    wav_ = []
+    acceptable_spec_units = ['ergs','photons']
+    if lower_filter_edge is None or upper_filter_edge is None:
+        raise ValueError('Must specify filter edges.')
 
-    for i in range(len(wave)):
-        if wave[i] >= lower_filter_edge and wave[i] <= upper_filter_edge:
-            int_.append(flux[i])
-            var_.append(var[i])
-            wav_.append(wave[i])
-            
-    flux_ = np.trapz(int_,wav_)
+    h = 6.626E-27 # Planck constant, erg s
+    c = 3E18 # Speed of light, AA/s
 
-    var_ = np.array(var_)
-    fluxerr = np.sqrt(np.sum(var_))
-    mag = -2.5*np.log10(flux_/zp)
-    
-    # This assumes no error in zero point:
-    #emag = 1.09*(np.sqrt(np.sum(var_))/flux_)
-    # This includes error in zero point:
-    emag = np.sqrt((1.09*fluxerr/flux_)**2 + 2*(1.09*ezp/zp)**2)
+    if standard=='vega':
+        st_wav, st_flux, st_flux_error = load_vegaspec()
+
+        if spec_units in acceptable_spec_units:
+            if spec_units == 'ergs':
+                print('Spectrum units ergs/cm^2/s/AA. Converting to photons.')
+                flux /= h*c/wave
+                st_flux /= h*c/st_wav
+            elif spec_units == 'photons':
+                print('Spectrum units not converted; already in photons.')
+        else:
+            raise ValueError(f'Acceptable spec_units arguments are {acceptable_spec_units}.')
+
+        dlam = np.diff(wave)
+        st_dlam = np.diff(st_wav)
+
+        wave_cut = (wave > lower_filter_edge) & (wave < upper_filter_edge)
+
+        F = np.sum((flux[1:]*dlam)[wave_cut])
+        Fref = np.sum((st_flux[1:]*st_dlam)[wave_cut])
+        var_F = np.sum((wave[1:]**2*var[1:]**2*dlam**2)[wave_cut])
+
+        mag = -2.5*np.log10(F/Fref)
+        emag = np.sqrt((1.09/F)**2*var_F)
     
     return mag, emag
 
