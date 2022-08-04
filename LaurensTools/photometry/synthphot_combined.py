@@ -133,10 +133,11 @@ def synth_lc_tophat(wave,flux,var,lower_filter_edge=None,upper_filter_edge=None,
         dlam = np.diff(wave)
         st_dlam = np.diff(st_wav)
 
-        wave_cut = (wave > lower_filter_edge) & (wave < upper_filter_edge)
+        wave_cut = ((wave > lower_filter_edge) & (wave < upper_filter_edge))[1:]
+        st_wave_cut = ((st_wav > lower_filter_edge) & (st_wav < upper_filter_edge))[1:]
 
-        F = np.sum((flux[1:]*dlam)[wave_cut])
-        Fref = np.sum((st_flux[1:]*st_dlam)[wave_cut])
+        F = np.sum((wave[1:]*flux[1:]*dlam)[wave_cut])
+        Fref = np.sum((st_wav[1:]*st_flux[1:]*st_dlam)[st_wave_cut])
         var_F = np.sum((wave[1:]**2*var[1:]**2*dlam**2)[wave_cut])
 
         mag = -2.5*np.log10(F/Fref)
