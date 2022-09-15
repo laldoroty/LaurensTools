@@ -75,11 +75,8 @@ def cmagicmodel(bbv,ebbv,bmax,ebmax,dm15,edm15,slope,eslope,zcmb,model='He2018')
        
     py_mp_par = list(pycmpfit.MpPar() for i in range(n))
     
-    print('before fit')
     fit = pycmpfit.Mpfit(userfunc, m, theta, private_data=user_data, py_mp_par=py_mp_par)
-    print('after fit')
     fit.mpfit()  # NOTE now theta has been updated
-    print('update mpfit')
     mp_result = fit.result
     dof = mp_result.nfunc - mp_result.nfree
     chisq = mp_result.bestnorm
