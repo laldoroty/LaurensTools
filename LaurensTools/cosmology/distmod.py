@@ -1,21 +1,22 @@
 import os, sys
 import numpy as np
 import os.path as pa
+from copy import copy
 from astropy.cosmology import FlatLambdaCDM
+from astropy.table import Table, Column
 from .sncosmo_utils import helio_to_cmb
 import pycmpfit
 
 class HubbleDiagram(object):
     """
     Makes a Hubble diagram. 
-    
-    In the future, I will need to be able
-    to input light curves instead of singular Bmax or BBV
-    values. 
-
-    I also want to be able to input either zhelio or zcmb.
 
     Input table should be an astropy table. 
+
+    ### TO DO:
+    # Input entire LCs OR singular Bmax or BBV values
+    # Input either zhelio or zcmb
+    # Plot
     """
     def __init__(self,data,model='tripp',cosmo=FlatLambdaCDM(H0=70, Om0=0.3)):
         acceptable_models = ['tripp','salt','He2018','Aldoroty2022']
@@ -23,8 +24,9 @@ class HubbleDiagram(object):
         self.model = model
         self.cosmo = cosmo
 
-        # We use these later:
+        # We use these variables later:
         self.covar = None
+
         if model not in acceptable_models:
             raise ValueError(f'model argument not recognized. Acceptable models are {acceptable_models}.')
         elif model == 'tripp':
@@ -33,6 +35,32 @@ class HubbleDiagram(object):
             self.input_data = self.data['bmax','ebmax','x1','ex1','c','ec','zcmb']
         elif model == 'He2018' or model == 'Aldoroty2022':
             self.input_data = self.data['bbv','ebbv','bmax','ebmax','dm15','edm15','slope','eslope','zcmb']
+
+    def test_dm(self,train_pars,test,train):
+        """
+        First, set up the distance modulus equations for
+        your test data point in each iteration. 
+        """
+        if self.model=='tripp':
+            M,a,d = train_pars
+            mu = test['bmax'] - M - a*(test['c']-np.mean(train['c'])) - d*(test['dm15']-np.mean(train['dm15']))
+        elif self.model=='salt':
+            M,a,b = train_pars
+            mu = test['bmax'] - M + a*(test['x1']) - b*(test['x1'])
+        elif self.model=='He2018' or self.model=='Aldoroty2022':
+            M,delta,b2 = train_pars
+            if self.model=='He2018':
+                mu = test['bbv'] - M - delta*(test['dm15'] - np.mean(train['dm15'])) - \
+                (b2 - test['slope'])*((test['bmax']-test['bbv'])/test['slope'] + \
+                    1.2*(1/test['slope'] - np.mean(1/train['slope'])))
+            elif self.model=='Aldoroty2022':
+                mu = test['bbv'] - M - delta*(test['dm15'] - np.mean(train['dm15'])) - \
+                    (b2 - test['slope'])*((test['bmax']-test['bbv'])/test['slope'] - \
+                        np.mean((train['bmax']-train['bbv'])/train['slope']))
+
+        mu_expected = self.cosmo.distmod(test['zcmb']).value
+        resid = mu - mu_expected
+        return mu, resid, test['zcmb']
 
     def minimize(self,verbose=False):
         """
@@ -120,8 +148,17 @@ class HubbleDiagram(object):
         err = np.sqrt(np.matmul(jac, np.matmul(self.covar, jac.T)) + evpec**2)
         
         # theta_fin is the final fit parameters, M, a, d
+        # the error on theta_fin is in the covariance matrix, self.covar
         # err is the error on MU for EACH SN
-        return theta_fin, err, dof, chisq
+
+        mu = np.array([self.test_dm(theta_fin,self.input_data[i],self.input_data)[0] for i in range(len(self.input_data))])
+        mu_expected = self.cosmo.distmod(self.input_data['zcmb']).value
+        resid = mu-mu_expected
+
+        self.data['data_mu'] = mu
+        self.data['data_mu_err'] = err
+
+        return theta_fin, mu, err, dof, chisq
 
     def loocv(self):
         """
@@ -129,3 +166,30 @@ class HubbleDiagram(object):
         Generates a LOOCV Hubble Diagram and LOOCV Hubble
         residual. 
         """
+
+        test_mus=[]
+        test_resids=[]
+        test_zcmbs=[]
+
+        N = len(self.input_data)
+        indices = np.arange(0,len(self.input_data))
+        input_data_copy = copy(self.input_data)
+        for i in range(N):
+            mask=(indices==i)
+            train_args = input_data_copy[~mask]
+            test_args = input_data_copy[mask]
+            train_params = self.minimize()[0] # [0] is the final param estimate, theta_fin
+            test_mu, test_resid, test_zcmb = self.test_dm(train_params,test=test_args,train=train_args)
+
+            train_covar = self.covar 
+            
+
+            test_mus.append(test_mu[0])
+            test_resids.append(test_resid[0])
+            test_zcmbs.append(test_zcmb[0])
+
+
+        self.data['loocv_mu'] = test_mus
+        self.data['loocv_resids'] = test_resids
+
+        return test_mus, test_resids, test_zcmbs
