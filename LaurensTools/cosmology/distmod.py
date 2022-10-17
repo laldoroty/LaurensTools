@@ -6,6 +6,9 @@ from astropy.cosmology import FlatLambdaCDM
 from astropy.table import Table, Column
 from .sncosmo_utils import helio_to_cmb
 import pycmpfit
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+from LaurensTools.utils import plotaesthetics
 
 class HubbleDiagram(object):
     """
@@ -36,6 +39,18 @@ class HubbleDiagram(object):
         elif model == 'He2018' or model == 'Aldoroty2022':
             self.input_data = self.data['bbv','ebbv','bmax','ebmax','dm15','edm15','slope','eslope','zcmb']
 
+        if 'zhelio' in self.data.columns:
+            try:
+                self.data['zcmb'] = helio_to_cmb(self.data['zhelio'],self.data['ra'],self.data['dec'])
+            except:
+                print('Unable to convert zhelio to zcmb. Leaving it as zhelio.')
+
+    def evpec(self,zcmb):
+        speedoflight = 3E5 # speed of light, km/s  
+        vpec = 300 # assumed peculiar velocity, km/s
+        return (5/np.log(10))*(vpec/(speedoflight*zcmb)) # error from peculiar velocity, units are magnitudes 
+
+
     def test_dm(self,train_pars,test,train):
         """
         First, set up the distance modulus equations for
@@ -62,18 +77,14 @@ class HubbleDiagram(object):
         resid = mu - mu_expected
         return mu, resid, test['zcmb']
 
-    def minimize(self,verbose=False):
+    def minimize(self,verbose=False,return_fit=False):
         """
         Calculate the distance modulus using chi-square
         minimization. 
         """
         expected_mu = self.cosmo.distmod(self.data['zcmb']).value
-        speedoflight = 3E5 # speed of light, km/s  
-        vpec = 300 # assumed peculiar velocity, km/s
-        evpec = (5/np.log(10))*(vpec/(speedoflight*self.data['zcmb'])) # error from peculiar velocity, units are magnitudes 
-
         self.input_data['mu'] = expected_mu
-        self.input_data['evpec'] = evpec
+        self.input_data['evpec'] = self.evpec(self.data['zcmb'])
 
         def userfunc(m, n, theta, private_data=self.input_data):
             if self.model=='tripp':
@@ -145,7 +156,7 @@ class HubbleDiagram(object):
         elif self.model=='Aldoroty2022':
             jac = np.array([-1, -(self.input_data['dm15'] - np.mean(self.input_data['dm15'])), -((self.input_data['bmax'] - self.input_data['bbv'])/self.input_data['slope'] - np.mean((self.input_data['bmax'] - self.input_data['bbv'])/self.input_data['slope']))], dtype='object')
 
-        err = np.sqrt(np.matmul(jac, np.matmul(self.covar, jac.T)) + evpec**2)
+        err = np.sqrt(np.matmul(jac, np.matmul(self.covar, jac.T)) + self.evpec(self.input_data['zcmb'])**2)
         
         # theta_fin is the final fit parameters, M, a, d
         # the error on theta_fin is in the covariance matrix, self.covar
@@ -158,7 +169,10 @@ class HubbleDiagram(object):
         self.data['data_mu'] = mu
         self.data['data_mu_err'] = err
 
-        return theta_fin, mu, err, dof, chisq
+        if return_fit:
+            return mu, resid, err, theta_fin, dof, chisq
+        else: 
+            return mu, resid, err
 
     def loocv(self):
         """
@@ -169,7 +183,7 @@ class HubbleDiagram(object):
 
         test_mus=[]
         test_resids=[]
-        test_zcmbs=[]
+        test_errs=[]
 
         N = len(self.input_data)
         indices = np.arange(0,len(self.input_data))
@@ -178,18 +192,61 @@ class HubbleDiagram(object):
             mask=(indices==i)
             train_args = input_data_copy[~mask]
             test_args = input_data_copy[mask]
-            train_params = self.minimize()[0] # [0] is the final param estimate, theta_fin
+            train_params = self.minimize(return_fit=True)[3] # [3] is the final param estimate, theta_fin
             test_mu, test_resid, test_zcmb = self.test_dm(train_params,test=test_args,train=train_args)
 
             train_covar = self.covar 
             
+            if self.model=='tripp':
+                jac = np.array([-1, -test_args['c']+np.mean(train_args['c']), -test_args['dm15']+np.mean(train_args['dm15'])], dtype='object')
+            elif self.model=='salt':
+                jac = np.array([-1, test_args['x1'], -test_args['c']], dtype='object')
+            elif self.model=='He2018':
+                jac = np.array([-1, -(test_args['dm15'] - np.mean(train_args['dm15'])), -((test_args['bmax'] - test_args['bbv'])/test_args['slope'] + 1.2*(1/test_args['slope'] - np.mean(1/train_args['slope'])))], dtype='object')
+            elif self.model=='Aldoroty2022':
+                jac = np.array([-1, -(test_args['dm15'] - np.mean(test_args['dm15'])), -((test_args['bmax'] - test_args['bbv'])/test_args['slope'] - np.mean((train_args['bmax'] - train_args['bbv'])/train_args['slope']))], dtype='object')
+
+            err = np.sqrt(np.matmul(jac, np.matmul(self.covar, jac.T)) + self.evpec(test_args['zcmb'])**2)
 
             test_mus.append(test_mu[0])
             test_resids.append(test_resid[0])
-            test_zcmbs.append(test_zcmb[0])
-
+            test_errs.append(err[0])
 
         self.data['loocv_mu'] = test_mus
         self.data['loocv_resids'] = test_resids
+        self.data['loocv_err'] = test_errs
 
-        return test_mus, test_resids, test_zcmbs
+        return test_mus, test_resids, test_errs
+
+    def plot(self,mu,resid,err):
+
+        plot_z = np.arange(min(self.data['zcmb']),max(self.data['zcmb'])+0.01,0.01)
+
+        fig = plt.figure(figsize = (8, 10), dpi = 100)
+        gs = GridSpec(2,1,height_ratios=[4,1])
+        gs.update(wspace=0, hspace=0) # set the spacing between axes.
+        ax2=plt.subplot(gs[1])
+        ax1=plt.subplot(gs[0],sharex=ax2)
+        plt.setp(ax1.get_xticklabels(), visible=False)
+
+        ax1.errorbar(np.log10(self.data['zcmb']),mu,yerr=np.sqrt((err**2 + self.evpec(self.data['zcmb'])**2)),marker='o',linestyle='',markersize=8)
+        ax2.errorbar(np.log10(self.data['zcmb']),resid,yerr=np.sqrt((err**2 + self.evpec(self.data['zcmb'])**2)),marker='o',linestyle='',markersize=8)
+
+        # Plot peculiar velocity error on Hubble diagram:
+        ax1.plot(np.log10(plot_z),self.cosmo.distmod(plot_z).value,color='k')
+        ax1.plot(np.log10(plot_z),self.cosmo.distmod(plot_z).value - self.evpec(plot_z),color='k',linestyle='--')
+        ax1.plot(np.log10(plot_z),self.cosmo.distmod(plot_z).value + self.evpec(plot_z),color='k',linestyle='--')
+
+        # Plot peculiar velocity error on Hubble residual:
+        ax2.axhline(0,color='k')
+        ax2.plot(np.log10(plot_z),self.evpec(plot_z),color='k',linestyle='--')
+        ax2.plot(np.log10(plot_z),-self.evpec(plot_z),color='k',linestyle='--')
+
+        # Annotations
+        wrms = np.sqrt(np.sum(resid**2/err**2)/np.sum(1/err**2))
+        wrms_string = r'$\sigma_{WRMS} = $' + f'{np.round(wrms,3)}'
+        ax1.annotate(wrms_string, xy=(0.5,0.05), xycoords='axes fraction', fontsize=30)
+
+        ax2.set_xlabel(r'$\log(z_{CMB}$)',fontsize=30)
+        ax1.set_ylabel(r'$\mu$',fontsize=30)
+        ax2.set_ylim(-0.7,0.7)
