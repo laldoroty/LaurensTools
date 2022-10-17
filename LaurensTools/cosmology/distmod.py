@@ -216,7 +216,7 @@ class HubbleDiagram(object):
         self.data['loocv_resids'] = test_resids
         self.data['loocv_err'] = test_errs
 
-        return test_mus, test_resids, test_errs
+        return np.array(test_mus), np.array(test_resids), np.array(test_errs)
 
     def plot(self,mu,resid,err):
 
@@ -250,3 +250,5 @@ class HubbleDiagram(object):
         ax2.set_xlabel(r'$\log(z_{CMB}$)',fontsize=30)
         ax1.set_ylabel(r'$\mu$',fontsize=30)
         ax2.set_ylim(-0.7,0.7)
+
+        plt.show()
