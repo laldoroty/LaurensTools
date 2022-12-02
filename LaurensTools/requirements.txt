@@ -1,0 +1,11 @@
+numpy
+pandas
+scipy
+astropy
+matplotlib
+os
+playsound
+types
+Cython
+pycmpfit
+numba

@@ -9,6 +9,7 @@ import pycmpfit
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 from LaurensTools.utils import plotaesthetics
+from numba import jit
 
 class HubbleDiagram(object):
     """
@@ -174,6 +175,7 @@ class HubbleDiagram(object):
         else: 
             return mu, resid, err
 
+    @jit(forceobj=True)
     def loocv(self):
         """
         Do leave-one-out-cross-validation for your dataset.
