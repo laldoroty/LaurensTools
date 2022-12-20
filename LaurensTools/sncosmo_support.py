@@ -188,7 +188,7 @@ def param_err_to_mag_err_2(result,model,band):
                                     varM0_central + x1*varM1_central + \
                     2*x1*covM0M1_central*np.sqrt(varM0_central*varM1_central)
 
-        mag_err = np.sqrt(((2.5/np.log(10))**2)*(model.bandflux(band,epoch)**2)/var_flux)
+        mag_err = np.sqrt(((2.5/np.log(10))**2)*(1/model.bandflux(band,epoch)**2))*var_flux
         mag_err_list.append(mag_err[0])
 
     return mag_err_list

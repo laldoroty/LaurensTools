@@ -37,9 +37,11 @@ def myfunctlin(p, fjac=None, x=None, y=None, xerr=None, yerr=None):
     elif xerr is None and yerr is None:
         return [status, y-model]
 
-def linfit(x,y,ex=None, ey=None, initial_guess=[0,1]):
+def linfit(x,y,ex=None, ey=None, initial_guess=[0,1], return_chisq=False):
     """
     Do the linear fit. USE THIS FUNCTION DIRECTLY IN YOUR CODE. 
+    If return_chisq = True, also returns m.fnorm (chisq) and m.dof (degrees
+    of freedom.)
     """
     p0=np.array(initial_guess,dtype='float64')  #initial conditions
     if ex is not None and ey is not None:
@@ -51,5 +53,8 @@ def linfit(x,y,ex=None, ey=None, initial_guess=[0,1]):
     elif ex is None and ey is None:
         fa = {'x':x, 'y':y}
     m = mpfit(myfunctlin, p0, functkw=fa)
-#         chisq=(myfunctlin(m.params, x=x, y=y, yerr=ey)[1]**2).sum()
-    return m.params, m.covar
+
+    if return_chisq:
+        return m.params, m.covar, m.fnorm, m.dof
+    else:
+        return m.params, m.covar

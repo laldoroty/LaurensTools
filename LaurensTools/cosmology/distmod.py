@@ -62,7 +62,7 @@ class HubbleDiagram(object):
             mu = test['bmax'] - M - a*(test['c']-np.mean(train['c'])) - d*(test['dm15']-np.mean(train['dm15']))
         elif self.model=='salt':
             M,a,b = train_pars
-            mu = test['bmax'] - M + a*(test['x1']) - b*(test['x1'])
+            mu = test['bmax'] - M + a*(test['x1']) - b*(test['c'])
         elif self.model=='He2018' or self.model=='Aldoroty2022':
             M,delta,b2 = train_pars
             if self.model=='He2018':
