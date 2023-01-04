@@ -33,5 +33,11 @@ update_rcParams('legend.numpoints', 1)
 update_rcParams('mathtext.fontset', 'cm')
 update_rcParams('mathtext.rm', 'serif')
 update_rcParams('axes.labelsize', 'x-large')
-# update_rcParams('axes.prop_cycle', mpl.cycler(color=['9F6CE6','FF984A','538050','6FADFA','7D7D7D','black']))
-update_rcParams('axes.prop_cycle', mpl.cycler(color=['darkorchid','darkorange','darkturquoise','6FADFA','7D7D7D','black']))
+update_rcParams('lines.markersize', 10)
+update_rcParams('lines.markeredgewidth', 1)
+update_rcParams('lines.markeredgecolor', 'k')
+
+cycle_colors = ['darkorchid','darkorange','darkturquoise','6FADFA','7D7D7D','black']
+# cycle_colors = ['9F6CE6','FF984A','538050','6FADFA','7D7D7D','black']
+cycle_markers = ['o','^','*','square','X','d']
+update_rcParams('axes.prop_cycle', mpl.cycler(color=cycle_colors) + mpl.cycler(marker=cycle_markers))
