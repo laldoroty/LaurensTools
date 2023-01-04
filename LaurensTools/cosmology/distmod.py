@@ -23,7 +23,7 @@ class HubbleDiagram(object):
     # Plot
     """
     def __init__(self,data,model='tripp',cosmo=FlatLambdaCDM(H0=70, Om0=0.3)):
-        acceptable_models = ['tripp','salt','He2018','Aldoroty2022']
+        acceptable_models = ['tripp','salt','frni','He2018','Aldoroty2022']
         self.data = data
         self.model = model
         self.cosmo = cosmo
@@ -37,6 +37,8 @@ class HubbleDiagram(object):
             self.input_data = self.data['bmax','ebmax','c','ec','dm15','edm15','zcmb']
         elif model == 'salt':
             self.input_data = self.data['bmax','ebmax','x1','ex1','c','ec','zcmb']
+        elif model == 'frni':
+            self.input_data = self.data['bmax','ebmax','frni','efrni','c','ec','zcmb']
         elif model == 'He2018' or model == 'Aldoroty2022':
             self.input_data = self.data['bbv','ebbv','bmax','ebmax','dm15','edm15','slope','eslope','zcmb']
 
@@ -63,6 +65,9 @@ class HubbleDiagram(object):
         elif self.model=='salt':
             M,a,b = train_pars
             mu = test['bmax'] - M + a*(test['x1']) - b*(test['c'])
+        elif self.model=='frni':
+            M,a,b = train_pars
+            mu = test['bmax'] - M - a*(test['frni']) - b*(test['c'])
         elif self.model=='He2018' or self.model=='Aldoroty2022':
             M,delta,b2 = train_pars
             if self.model=='He2018':
@@ -94,6 +99,9 @@ class HubbleDiagram(object):
             elif self.model=='salt':
                 M,a,b = theta
                 BMAX, EBMAX, X1, EX1, C, EC, EVPEC, MU = private_data["bmax"], private_data["ebmax"],private_data["x1"],private_data["ex1"],private_data["c"], private_data["ec"], private_data["evpec"], private_data["mu"]
+            elif self.model=='frni':
+                M,a,b = theta
+                BMAX, EBMAX, FRNI, EFRNI, C, EC, EVPEC, MU = private_data["bmax"], private_data["ebmax"],private_data["frni"],private_data["efrni"],private_data["c"], private_data["ec"], private_data["evpec"], private_data["mu"]
             elif self.model=='He2018' or self.model=='Aldoroty2022':
                 M,delta,b2 = theta
                 BBV,EBBV,BMAX,EBMAX,DM15,EDM15,SLOPE,ESLOPE,EVPEC,MU = private_data["bbv"],private_data["ebbv"],private_data["bmax"],private_data["ebmax"], private_data["dm15"],private_data["edm15"],private_data["slope"],private_data["eslope"],private_data["evpec"], private_data["mu"]
@@ -106,6 +114,8 @@ class HubbleDiagram(object):
                     devs[i] = (MU[i] - (BMAX[i] - M - a*(C[i]-np.mean(C)) - delta*(DM15[i]-np.mean(DM15))))/(EVPEC[i]**2 + EBMAX[i]**2 + a**2*EC[i]**2 + delta**2*EDM15[i]**2)**0.5
                 elif self.model=='salt':
                     devs[i] = (MU[i] - (BMAX[i] - M + a*(X1[i]) - b*C[i]))/(EVPEC[i]**2 + EBMAX[i]**2 + a**2*EX1[i]+ b**2*EC[i]**2)**0.5
+                elif self.model=='frni':
+                    devs[i] = (MU[i] - (BMAX[i] - M + a*(FRNI[i]) - b*C[i]))/(EVPEC[i]**2 + EBMAX[i]**2 + a**2*EFRNI[i]+ b**2*EC[i]**2)**0.5
                 elif self.model=='He2018':
                     num = MU[i] - (BBV[i] - M - delta*(DM15[i] - np.mean(DM15)) - (b2 - np.mean(SLOPE))*((BMAX[i]-BBV[i])/SLOPE[i] + 1.2*(1/SLOPE[i] - np.mean(1/SLOPE))))
                     dbbv = b2/SLOPE[i]
@@ -126,7 +136,7 @@ class HubbleDiagram(object):
             user_dict["deviates"] = devs
             return user_dict
 
-        if self.model=='tripp' or self.model=='salt':
+        if self.model=='tripp' or self.model=='salt' or self.model=='frni':
             theta = np.array([-19,0.1,0.1])   
         elif self.model=='He2018' or self.model=='Aldoroty2022':
             theta = np.array([-19,0.15,1.8])   
@@ -152,6 +162,8 @@ class HubbleDiagram(object):
             jac = np.array([-1, -self.input_data['c']+np.mean(self.input_data['c']), -self.input_data['dm15']+np.mean(self.input_data['dm15'])], dtype='object')
         elif self.model=='salt':
             jac = np.array([-1, self.input_data['x1'], -self.input_data['c']], dtype='object')
+        elif self.model=='frni':
+            jac = np.array([-1, -self.input_data['frni'], -self.input_data['c']], dtype='object')
         elif self.model=='He2018':
             jac = np.array([-1, -(self.input_data['dm15'] - np.mean(self.input_data['dm15'])), -((self.input_data['bmax'] - self.input_data['bbv'])/self.input_data['slope'] + 1.2*(1/self.input_data['slope'] - np.mean(1/self.input_data['slope'])))], dtype='object')
         elif self.model=='Aldoroty2022':
@@ -203,6 +215,8 @@ class HubbleDiagram(object):
                 jac = np.array([-1, -test_args['c']+np.mean(train_args['c']), -test_args['dm15']+np.mean(train_args['dm15'])], dtype='object')
             elif self.model=='salt':
                 jac = np.array([-1, test_args['x1'], -test_args['c']], dtype='object')
+            elif self.model=='frni':
+                jac = np.array([-1, -test_args['frni'], -test_args['c']], dtype='object')
             elif self.model=='He2018':
                 jac = np.array([-1, -(test_args['dm15'] - np.mean(train_args['dm15'])), -((test_args['bmax'] - test_args['bbv'])/test_args['slope'] + 1.2*(1/test_args['slope'] - np.mean(1/train_args['slope'])))], dtype='object')
             elif self.model=='Aldoroty2022':

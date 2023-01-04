@@ -103,7 +103,7 @@ def pEW(wave, flux, var, start_lam, end_lam, absorption=True, return_error=True,
 
     pardict = result.params.valuesdict()
     pars = [*pardict.values()]
-    print('fit parameters dictionary', pardict)
+    # print('fit parameters dictionary', pardict)
 
     if plotline:
         plt.plot(normalized_wave,normalized_lineonly)
