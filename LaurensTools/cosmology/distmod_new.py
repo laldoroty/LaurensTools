@@ -20,13 +20,14 @@ hd = distmod_new.HubbleDiagram(bmax=bmax,
                             z=zcmb))
 
 # We specify a least squares fit:
-guess=[-18,1.5,0.5]
+guess = [-18,1.5,0.5]
 res = hd.fit('ls',guess)
 pars = res.params
 cov = res.covar
 
 # Or we can specify maximum likelihood estimation:
-res_2 = hd.fit('mle',guess)
+guess_2 = [-18,1.5,0.5,0.5]
+res_2 = hd.fit('mle',guess_2)
 params = res_2.x
 
 """
@@ -42,12 +43,12 @@ class tripp():
     mu = Bmax - M - a*(c-np.mean(c)) - d*(dm15 - np.mean(dm15)) 
     """
 
-    def model(self, p, data):
+    def model(self,p,data):
         M,a,d = p
         bmax,bvmax,dm15 = data
         return bmax - M - a*(bvmax-np.mean(bvmax)) - d*(dm15 - np.mean(dm15))
 
-    def resid_func(self, p, data):
+    def resid_func(self,p,data):
         M,a,d = p
         mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,vpec = data
         num = mu - (bmax - M - a*(bvmax-np.mean(bvmax)) - 
@@ -56,11 +57,37 @@ class tripp():
             ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2)
         return num/den
 
-    def log_likelihood(self, p, data):
+    def log_likelihood(self,p,data):
         M,a,d,log_f = p
         mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,vpec = data
         sigma2 = ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2 + self.model([M,a,d], [bmax,bvmax,dm15])**2 * np.exp(2 * log_f)
         return -0.5 * np.sum((mu - self.model([M,a,d], [bmax,bvmax,dm15])) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
+
+class salt():
+    """
+    Defines model, residual, and log likelihood functions for
+    the standard SALT distance modulus model:
+    mu = Bmax - M - a*x1 - b*c 
+    """
+
+    def model(self,p,data):
+        M,a,b = p
+        bmax,x1,c = data
+        return bmax - M + a*x1 - b*c
+
+    def resid_func(self,p,data):
+        M,a,b = p
+        mu,bmax,ebmax,x1,ex1,c,ec,z,vpec = data
+        num = mu - (bmax - M + a*x1 - b*c)
+        den = np.sqrt(evpec(z,vpec)**2 + 
+            ebmax**2 + a**2*ex1**2 + b**2*ec**2)
+        return num/den
+
+    def log_likelihood(self,p,data):
+        M,a,b,log_f = p
+        mu,bmax,ebmax,x1,ex1,c,ec,z,vpec = data
+        sigma2 = ebmax**2 + a**2*ex1**2 + b**2*ec**2 + self.model([M,a,b], [bmax,x1,c])**2 * np.exp(2 * log_f)
+        return -0.5 * np.sum((mu - self.model([M,a,b], [bmax,x1,c])) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
 
 class HubbleDiagram():
     def __init__(self,model,H0=70,Om0=0.3,
@@ -70,6 +97,10 @@ class HubbleDiagram():
                     ebvmax=None,
                     dm15=None,
                     edm15=None,
+                    x1=None,
+                    ex1=None,
+                    c=None,
+                    ec=None,
                     vpec=None,
                     z=None):
 
@@ -79,6 +110,10 @@ class HubbleDiagram():
         self.ebvmax=ebvmax
         self.dm15=dm15
         self.edm15=edm15
+        self.x1=x1
+        self.ex1=ex1
+        self.c=c
+        self.ec=ec
         self.vpec=vpec
         self.z=z
 
@@ -87,12 +122,20 @@ class HubbleDiagram():
         self.mu = self.cosmo.distmod(self.z).value
 
         models = ['tripp','salt','H18','A23']
-        
         if model not in models:
             raise(ValueError(f'Argument model must be in {models}.'))    
-
-        if self.model == 'tripp':
+        elif self.model == 'tripp':
             self.mod = tripp()  
+            self.input_data = (self.mu,self.bmax,self.ebmax,
+                            self.bvmax,self.ebvmax,
+                            self.dm15,self.edm15,
+                            self.z,self.vpec)
+        elif self.model == 'salt':
+            self.mod = salt()
+            self.input_data = (self.mu,self.bmax,self.ebmax,
+                            self.x1,self.ex1,
+                            self.c,self.ec,
+                            self.z,self.vpec)
 
     def fit(self,fitmethod,initial_guess):
         """
@@ -130,10 +173,7 @@ class HubbleDiagram():
             raise(ValueError(f'Argument fitmethod must be in {fit_methods}.'))   
         elif fitmethod == 'ls':
             fitobj = kmpfit.Fitter(residuals=self.mod.resid_func, 
-                                    data=(self.mu,self.bmax,self.ebmax,
-                                                self.bvmax,self.ebvmax,
-                                                self.dm15,self.edm15,
-                                                self.z,self.vpec))
+                                    data=self.input_data)
             fitobj.fit(params0=initial_guess)
             return fitobj
 
@@ -142,8 +182,5 @@ class HubbleDiagram():
             # So, if you have 3 fit parameters in your model, you need to input a list
             # of length 4 with the guess for log_f as the last entry. 
             nll = lambda *args: -self.mod.log_likelihood(*args)
-            fitobj = minimize(nll,initial_guess,args=([self.mu,self.bmax,self.ebmax,
-                                                    self.bvmax,self.ebvmax,
-                                                    self.dm15,self.edm15,
-                                                    self.z,self.vpec]))
+            fitobj = minimize(nll,initial_guess,args=(list(self.input_data)))
             return fitobj
