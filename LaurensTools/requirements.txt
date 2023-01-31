@@ -9,3 +9,4 @@ types
 Cython
 pycmpfit
 numba
+kapteyn

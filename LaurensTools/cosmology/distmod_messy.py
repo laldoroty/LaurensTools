@@ -19,7 +19,7 @@ class HubbleDiagram(object):
 
     ### TO DO:
     # Input entire LCs OR singular Bmax or BBV values
-    # Input either zhelio or zcmb
+    # Input either zhelio or zcosmo
     # Plot
     """
     def __init__(self,data,model='tripp',cosmo=FlatLambdaCDM(H0=70, Om0=0.3)):
@@ -34,26 +34,25 @@ class HubbleDiagram(object):
         if model not in acceptable_models:
             raise ValueError(f'model argument not recognized. Acceptable models are {acceptable_models}.')
         elif model == 'tripp':
-            self.input_data = self.data['bmax','ebmax','c','ec','dm15','edm15','zcmb']
+            self.input_data = self.data['bmax','ebmax','c','ec','dm15','edm15','zcosmo','vpec']
         elif model == 'salt':
-            self.input_data = self.data['bmax','ebmax','x1','ex1','c','ec','zcmb']
+            self.input_data = self.data['bmax','ebmax','x1','ex1','c','ec','zcosmo','vpec']
         elif model == 'frni':
-            self.input_data = self.data['bmax','ebmax','frni','efrni','c','ec','zcmb']
+            self.input_data = self.data['bmax','ebmax','frni','efrni','c','ec','zcosmo','vpec']
         elif model == 'pEW 4000':
-            self.input_data = self.data['bmax','ebmax','pEW 4000','epEW4000','c','ec','zcmb']
+            self.input_data = self.data['bmax','ebmax','pEW 4000','epEW4000','c','ec','zcosmo','vpec']
         elif model == 'He2018' or model == 'Aldoroty2022':
-            self.input_data = self.data['bbv','ebbv','bmax','ebmax','dm15','edm15','slope','eslope','zcmb']
+            self.input_data = self.data['bbv','ebbv','bmax','ebmax','dm15','edm15','slope','eslope','zcosmo','vpec']
 
         if 'zhelio' in self.data.columns:
             try:
-                self.data['zcmb'] = helio_to_cmb(self.data['zhelio'],self.data['ra'],self.data['dec'])
+                self.data['zcosmo'] = helio_to_cmb(self.data['zhelio'],self.data['ra'],self.data['dec'])
             except:
-                print('Unable to convert zhelio to zcmb. Leaving it as zhelio.')
+                print('Unable to convert zhelio to zcosmo. Leaving it as zhelio.')
 
-    def evpec(self,zcmb):
+    def evpec(self,zcosmo,vpec):
         speedoflight = 3E5 # speed of light, km/s  
-        vpec = 300 # assumed peculiar velocity, km/s
-        return (5/np.log(10))*(vpec/(speedoflight*zcmb)) # error from peculiar velocity, units are magnitudes 
+        return (5/np.log(10))*(vpec/(speedoflight*zcosmo)) # error from peculiar velocity, units are magnitudes 
 
 
     def test_dm(self,train_pars,test,train):
@@ -84,18 +83,18 @@ class HubbleDiagram(object):
                     (b2 - test['slope'])*((test['bmax']-test['bbv'])/test['slope'] - \
                         np.mean((train['bmax']-train['bbv'])/train['slope']))
 
-        mu_expected = self.cosmo.distmod(test['zcmb']).value
+        mu_expected = self.cosmo.distmod(test['zcosmo']).value
         resid = mu - mu_expected
-        return mu, resid, test['zcmb']
+        return mu, resid, test['zcosmo']
 
     def minimize(self,verbose=False,return_fit=False):
         """
         Calculate the distance modulus using chi-square
         minimization. 
         """
-        expected_mu = self.cosmo.distmod(self.data['zcmb']).value
+        expected_mu = self.cosmo.distmod(self.data['zcosmo']).value
         self.input_data['mu'] = expected_mu
-        self.input_data['evpec'] = self.evpec(self.data['zcmb'])
+        self.input_data['evpec'] = self.evpec(self.data['zcosmo'],self.data['vpec'])
 
         def userfunc(m, n, theta, private_data=self.input_data):
             if self.model=='tripp':
@@ -181,14 +180,14 @@ class HubbleDiagram(object):
         elif self.model=='Aldoroty2022':
             jac = np.array([-1, -(self.input_data['dm15'] - np.mean(self.input_data['dm15'])), -((self.input_data['bmax'] - self.input_data['bbv'])/self.input_data['slope'] - np.mean((self.input_data['bmax'] - self.input_data['bbv'])/self.input_data['slope']))], dtype='object')
 
-        err = np.sqrt(np.matmul(jac, np.matmul(self.covar, jac.T)) + self.evpec(self.input_data['zcmb'])**2)
+        err = np.sqrt(np.matmul(jac, np.matmul(self.covar, jac.T)) + self.evpec(self.input_data['zcosmo'],self.input_data['vpec'])**2)
         
         # theta_fin is the final fit parameters, M, a, d
         # the error on theta_fin is in the covariance matrix, self.covar
         # err is the error on MU for EACH SN
 
         mu = np.array([self.test_dm(theta_fin,self.input_data[i],self.input_data)[0] for i in range(len(self.input_data))])
-        mu_expected = self.cosmo.distmod(self.input_data['zcmb']).value
+        mu_expected = self.cosmo.distmod(self.input_data['zcosmo']).value
         resid = mu-mu_expected
 
         self.data['data_mu'] = mu
@@ -219,7 +218,7 @@ class HubbleDiagram(object):
             train_args = input_data_copy[~mask]
             test_args = input_data_copy[mask]
             train_params = self.minimize(return_fit=True)[3] # [3] is the final param estimate, theta_fin
-            test_mu, test_resid, test_zcmb = self.test_dm(train_params,test=test_args,train=train_args)
+            test_mu, test_resid, test_zcosmo = self.test_dm(train_params,test=test_args,train=train_args)
 
             train_covar = self.covar 
             
@@ -236,7 +235,7 @@ class HubbleDiagram(object):
             elif self.model=='Aldoroty2022':
                 jac = np.array([-1, -(test_args['dm15'] - np.mean(test_args['dm15'])), -((test_args['bmax'] - test_args['bbv'])/test_args['slope'] - np.mean((train_args['bmax'] - train_args['bbv'])/train_args['slope']))], dtype='object')
 
-            err = np.sqrt(np.matmul(jac, np.matmul(self.covar, jac.T)) + self.evpec(test_args['zcmb'])**2)
+            err = np.sqrt(np.matmul(jac, np.matmul(self.covar, jac.T)) + self.evpec(test_args['zcosmo'],test_args['vpec'])**2)
 
             test_mus.append(test_mu[0])
             test_resids.append(test_resid[0])
@@ -250,7 +249,7 @@ class HubbleDiagram(object):
 
     def plot(self,mu,resid,err):
 
-        plot_z = np.arange(min(self.data['zcmb']),max(self.data['zcmb'])+0.01,0.01)
+        plot_z = np.arange(min(self.data['zcosmo']),max(self.data['zcosmo'])+0.01,0.01)
 
         fig = plt.figure(figsize = (8, 10), dpi = 100)
         gs = GridSpec(2,1,height_ratios=[4,1])
@@ -259,8 +258,8 @@ class HubbleDiagram(object):
         ax1=plt.subplot(gs[0],sharex=ax2)
         plt.setp(ax1.get_xticklabels(), visible=False)
 
-        ax1.errorbar(np.log10(self.data['zcmb']),mu,yerr=np.sqrt((err**2 + self.evpec(self.data['zcmb'])**2)),marker='o',linestyle='',markersize=8)
-        ax2.errorbar(np.log10(self.data['zcmb']),resid,yerr=np.sqrt((err**2 + self.evpec(self.data['zcmb'])**2)),marker='o',linestyle='',markersize=8)
+        ax1.errorbar(np.log10(self.data['zcosmo']),mu,yerr=np.sqrt((err**2 + self.evpec(self.data['zcosmo'])**2)),marker='o',linestyle='',markersize=8)
+        ax2.errorbar(np.log10(self.data['zcosmo']),resid,yerr=np.sqrt((err**2 + self.evpec(self.data['zcosmo'])**2)),marker='o',linestyle='',markersize=8)
 
         # Plot peculiar velocity error on Hubble diagram:
         ax1.plot(np.log10(plot_z),self.cosmo.distmod(plot_z).value,color='k')

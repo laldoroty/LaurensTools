@@ -37,7 +37,10 @@ update_rcParams('lines.markersize', 10)
 update_rcParams('lines.markeredgewidth', 1)
 update_rcParams('lines.markeredgecolor', 'k')
 
-cycle_colors = ['darkorchid','darkorange','darkturquoise','6FADFA','7D7D7D','black']
+# cycle_colors = ['darkorchid','darkorange','darkturquoise','6FADFA','7D7D7D','black']
 # cycle_colors = ['9F6CE6','FF984A','538050','6FADFA','7D7D7D','black']
-cycle_markers = ['o','^','*','square','X','d']
+# cycle_markers = ['o','^','*','square','X','d']
+cycle_colors = ['darkorchid','darkorange','darkturquoise']
+cycle_markers = ['o','^','*']
 update_rcParams('axes.prop_cycle', mpl.cycler(color=cycle_colors) + mpl.cycler(marker=cycle_markers))
+# update_rcParams('axes.prop_cycle', mpl.cycler(color=cycle_colors))
