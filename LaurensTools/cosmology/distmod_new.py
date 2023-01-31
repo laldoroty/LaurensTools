@@ -67,7 +67,7 @@ class salt():
     """
     Defines model, residual, and log likelihood functions for
     the standard SALT distance modulus model:
-    mu = Bmax - M - a*x1 - b*c 
+    mu = Bmax - M + a*x1 - b*c 
     """
 
     def model(self,p,data):
@@ -91,16 +91,11 @@ class salt():
 
 class HubbleDiagram():
     def __init__(self,model,H0=70,Om0=0.3,
-                    bmax=None,
-                    ebmax=None,
-                    bvmax=None,
-                    ebvmax=None,
-                    dm15=None,
-                    edm15=None,
-                    x1=None,
-                    ex1=None,
-                    c=None,
-                    ec=None,
+                    bmax=None, ebmax=None,
+                    bvmax=None, ebvmax=None,
+                    dm15=None, edm15=None,
+                    x1=None, ex1=None,
+                    c=None, ec=None,
                     vpec=None,
                     z=None):
 
