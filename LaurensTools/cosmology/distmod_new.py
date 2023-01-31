@@ -38,30 +38,34 @@ def evpec(z,vpec):
 
 class tripp():
     """
-    Defines model, residual, and log likelihood functions for
-    the standard distance modulus model:
+    Defines model, residual, Jacobian, and log likelihood 
+    functions for the standard distance modulus model:
     mu = Bmax - M - a*(c-np.mean(c)) - d*(dm15 - np.mean(dm15)) 
     """
 
     def model(self,p,data):
         M,a,d = p
-        bmax,bvmax,dm15 = data
+        mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
         return bmax - M - a*(bvmax-np.mean(bvmax)) - d*(dm15 - np.mean(dm15))
 
     def resid_func(self,p,data):
         M,a,d = p
-        mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,vpec = data
+        mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
         num = mu - (bmax - M - a*(bvmax-np.mean(bvmax)) - 
             d*(dm15 - np.mean(dm15)))
-        den = np.sqrt(evpec(z,vpec)**2 + 
+        den = np.sqrt(evpec**2 + 
             ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2)
         return num/den
 
     def log_likelihood(self,p,data):
         M,a,d,log_f = p
-        mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,vpec = data
-        sigma2 = ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2 + self.model([M,a,d], [bmax,bvmax,dm15])**2 * np.exp(2 * log_f)
-        return -0.5 * np.sum((mu - self.model([M,a,d], [bmax,bvmax,dm15])) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
+        mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
+        sigma2 = ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2 + self.model([M,a,d], data)**2 * np.exp(2 * log_f)
+        return -0.5 * np.sum((mu - self.model([M,a,d], data)) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
+
+    def jac(self,data):
+        mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
+        return np.array([-np.ones(len(bvmax)), -bvmax+np.mean(bvmax), -dm15+np.mean(dm15)], dtype='object').T
 
 class salt():
     """
@@ -77,17 +81,17 @@ class salt():
 
     def resid_func(self,p,data):
         M,a,b = p
-        mu,bmax,ebmax,x1,ex1,c,ec,z,vpec = data
+        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data
         num = mu - (bmax - M + a*x1 - b*c)
-        den = np.sqrt(evpec(z,vpec)**2 + 
+        den = np.sqrt(evpec**2 + 
             ebmax**2 + a**2*ex1**2 + b**2*ec**2)
         return num/den
 
     def log_likelihood(self,p,data):
         M,a,b,log_f = p
-        mu,bmax,ebmax,x1,ex1,c,ec,z,vpec = data
-        sigma2 = ebmax**2 + a**2*ex1**2 + b**2*ec**2 + self.model([M,a,b], [bmax,x1,c])**2 * np.exp(2 * log_f)
-        return -0.5 * np.sum((mu - self.model([M,a,b], [bmax,x1,c])) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
+        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data
+        sigma2 = ebmax**2 + a**2*ex1**2 + b**2*ec**2 + self.model([M,a,b], data)**2 * np.exp(2 * log_f)
+        return -0.5 * np.sum((mu - self.model([M,a,b], data)) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
 
 class HubbleDiagram():
     def __init__(self,model,H0=70,Om0=0.3,
@@ -110,6 +114,7 @@ class HubbleDiagram():
         self.c=c
         self.ec=ec
         self.vpec=vpec
+        self.evpec=evpec(z,vpec)
         self.z=z
 
         self.model = model
@@ -121,25 +126,28 @@ class HubbleDiagram():
             raise(ValueError(f'Argument model must be in {models}.'))    
         elif self.model == 'tripp':
             self.mod = tripp()  
-            self.input_data = (self.mu,self.bmax,self.ebmax,
+            self.input_data = [self.mu,self.bmax,self.ebmax,
                             self.bvmax,self.ebvmax,
                             self.dm15,self.edm15,
-                            self.z,self.vpec)
+                            self.z,self.evpec]
         elif self.model == 'salt':
             self.mod = salt()
-            self.input_data = (self.mu,self.bmax,self.ebmax,
+            self.input_data = [self.mu,self.bmax,self.ebmax,
                             self.x1,self.ex1,
                             self.c,self.ec,
-                            self.z,self.vpec)
+                            self.z,self.evpec]
 
-    def fit(self,fitmethod,initial_guess):
+    def fit(self,fitmethod,initial_guess,scale_errors=False):
         """
         LNA 20230130
 
         IF USING fitmethod='ls', i.e. least-squares fitting:
         This is a wrapper for kapteyn.kmpfit,
-        which is a wrapper for mpfit. Attributes
-        for fitobj are:
+        which is a wrapper for mpfit. Returns fitobj,
+        which is the object from kapteyn.kmpfit, and
+        the error for your data points. 
+
+        Attributes for fitobj are:
         https://www.astro.rug.nl/software/kapteyn/kmpfittutorial.html
         Best-fit parameters:        , fitobj.params)
         Asymptotic error:           , fitobj.xerror)
@@ -168,14 +176,38 @@ class HubbleDiagram():
             raise(ValueError(f'Argument fitmethod must be in {fit_methods}.'))   
         elif fitmethod == 'ls':
             fitobj = kmpfit.Fitter(residuals=self.mod.resid_func, 
-                                    data=self.input_data)
+                                    data=tuple(self.input_data))
             fitobj.fit(params0=initial_guess)
-            return fitobj
+
+            if scale_errors:
+                print('Errors will be scaled such that chi^2 = dof.')
+                redchi = fitobj.rchi2_min
+                print('reduced chi before', redchi)
+                error_vars = [self.ebmax,self.ebvmax,self.edm15,
+                                self.ex1,self.ec,self.evpec]
+                for var in error_vars:
+                    try:
+                        idx = [idx for idx, ele in enumerate(self.input_data) if np.array_equal(ele,var)][0]
+                        self.input_data[idx] *= np.sqrt(redchi)
+                    except IndexError: pass
+
+                fitobj = kmpfit.Fitter(residuals=self.mod.resid_func, 
+                                    data=tuple(self.input_data))
+                fitobj.fit(params0=initial_guess)
+
+                print('reduced chi after,', fitobj.rchi2_min)
+
+            jacobian = self.mod.jac(self.input_data)
+            err = np.zeros(len(self.evpec))
+            for i, j in enumerate(jacobian):
+                err[i] = np.sqrt(float(j @ fitobj.covar @ j.T) + self.evpec[i]**2)
+
+            return fitobj, np.array(err)
 
         elif fitmethod == 'mle':
             # Recall that for MLE, you have an additional log_f parameter to guess.
             # So, if you have 3 fit parameters in your model, you need to input a list
             # of length 4 with the guess for log_f as the last entry. 
             nll = lambda *args: -self.mod.log_likelihood(*args)
-            fitobj = minimize(nll,initial_guess,args=(list(self.input_data)))
+            fitobj = minimize(nll,initial_guess,args=(self.input_data))
             return fitobj
