@@ -8,7 +8,7 @@ from scipy.interpolate import interp1d
 
 # print(pa.abspath(pycmpfit.__file__))
 """
-
+never actually used this, nor completed it, I think. 
 """
 
 def get_template(band_a,band_b):

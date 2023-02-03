@@ -179,6 +179,7 @@ class HubbleDiagram():
             return fitobj, np.array(err)
 
         elif fitmethod == 'mle':
+            # MLE and MCMC largely follow https://emcee.readthedocs.io/en/stable/tutorials/line/.
             # Recall that for MLE, you have an additional log_f parameter to guess.
             # So, if you have 3 fit parameters in your model, you need to input a list
             # of length 4 with the guess for log_f as the last entry. 

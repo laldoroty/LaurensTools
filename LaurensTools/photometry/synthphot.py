@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import copy 
 from scipy.interpolate import interp1d
 from astropy.io import fits
 import matplotlib.pyplot as plt
@@ -109,55 +110,6 @@ def load_filtersys(sys):
 
     return filtersys, zeropoints
 
-def synth_lc_tophat(wave,flux,var,lower_filter_edge=None,upper_filter_edge=None,standard='vega',spec_units='ergs',verbose=False):
-    """
-    20210520 LNA
-    Make a synthetic magnitude from a spectrum using a top hat filter.
-
-    Keyword arguments:
-    wave -- Spectrum wavelength
-    flux -- Spectrum flux
-    var -- Spectrum variance
-    lower_filter_edge -- Lower bound on top hat filter
-    upper_filter_edge -- Upper bound on top hat filter
-
-    """
-    acceptable_spec_units = ['ergs','photons']
-    if lower_filter_edge is None or upper_filter_edge is None:
-        raise ValueError('Must specify filter edges.')
-
-    h = 6.626E-27 # Planck constant, erg s
-    c = 3E18 # Speed of light, AA/s
-
-    if standard=='vega':
-        st_wav, st_flux, st_flux_error = load_vegaspec()
-
-        if spec_units in acceptable_spec_units:
-            if spec_units == 'ergs':
-                if verbose:
-                    print('Spectrum units ergs/cm^2/s/AA. Converting to photons.')
-                flux /= h*c/wave
-                st_flux /= h*c/st_wav
-            elif spec_units == 'photons' and verbose:
-                print('Spectrum units not converted; already in photons.')
-        else:
-            raise ValueError(f'Acceptable spec_units arguments are {acceptable_spec_units}.')
-
-        dlam = np.diff(wave)
-        st_dlam = np.diff(st_wav)
-
-        wave_cut = ((wave > lower_filter_edge) & (wave < upper_filter_edge))[1:]
-        st_wave_cut = ((st_wav > lower_filter_edge) & (st_wav < upper_filter_edge))[1:]
-
-        F = np.sum((wave[1:]*flux[1:]*dlam)[wave_cut])
-        Fref = np.sum((st_wav[1:]*st_flux[1:]*st_dlam)[st_wave_cut])
-        var_F = np.sum((wave[1:]**2*var[1:]**2*dlam**2)[wave_cut])
-
-        mag = -2.5*np.log10(F/Fref)
-        emag = np.sqrt((1.09/F)**2*var_F)
-    
-    return mag, emag
-
 def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=False):
     """
     Retrieve flux in all bands for Bessell, SDSS, SNfactory top hat, or LSST filters.
@@ -184,6 +136,8 @@ def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=F
     F = {}
     eF = {}
 
+    wave, flux, var = copy.deepcopy(wave), copy.deepcopy(flux), copy.deepcopy(var)
+
     if standard=='vega':
         st_wav, st_flux, st_flux_error = load_vegaspec()
         responsefunc, zeropoints = load_filtersys(sys)
@@ -194,9 +148,9 @@ def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=F
                 if verbose:
                     print('Spectrum units ergs/cm^2/s/AA. Converting to photons.')
                 flux /= h*c/wave
-                var /= (h*c/wave)**2/var
+                var /= (h*c/wave)**2
                 st_flux /= h*c/st_wav
-                st_flux_error /= (h*c/st_wav)/st_flux_error
+
             elif spec_units == 'photons' and verbose:
                 print('Spectrum units not converted; already in photons.')
         else:
@@ -211,12 +165,12 @@ def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=F
         for band in filters:
             responsefunc_interp = interp1d(responsefunc[band]['wavelength'], responsefunc[band]['transmission'],kind='linear',bounds_error=False)
 
-            F_ = np.sum(flux[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])*wave[1:]*dlam*(h*c/wave[1:]))
-            var_F = np.sum(wave[1:]**2*var[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])**2*dlam**2*(h*c/wave[1:])**2)
-            Fref = np.sum(st_flux[1:]*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_wav[1:]*st_dlam*(h*c/st_wav[1:]))
+            F_ = np.sum(flux[1:]*(h*c/wave[1:])*np.nan_to_num(responsefunc_interp(wave)[1:])*dlam)
+            Fref = np.sum(st_flux[1:]*(h*c/st_wav[1:])*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_dlam)
+            eF_ = np.sum(np.sqrt(var[1:])*(h*c/wave[1:])*np.nan_to_num(responsefunc_interp(wave)[1:])*dlam)/Fref
 
             F[band] = F_/Fref
-            eF[band] = np.sqrt(var_F)
+            eF[band] = eF_
 
     return F, eF
 
