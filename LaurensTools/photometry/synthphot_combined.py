@@ -194,7 +194,9 @@ def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=F
                 if verbose:
                     print('Spectrum units ergs/cm^2/s/AA. Converting to photons.')
                 flux /= h*c/wave
+                var /= (h*c/wave)**2/var
                 st_flux /= h*c/st_wav
+                st_flux_error /= (h*c/st_wav)/st_flux_error
             elif spec_units == 'photons' and verbose:
                 print('Spectrum units not converted; already in photons.')
         else:
@@ -209,9 +211,9 @@ def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=F
         for band in filters:
             responsefunc_interp = interp1d(responsefunc[band]['wavelength'], responsefunc[band]['transmission'],kind='linear',bounds_error=False)
 
-            F_ = np.sum(flux[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])*wave[1:]*dlam)/(h*c)
-            var_F = np.sum(wave[1:]**2*var[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])**2*dlam**2)/(h*c)**2
-            Fref = np.sum(st_flux[1:]*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_wav[1:]*st_dlam)/(h*c)
+            F_ = np.sum(flux[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])*wave[1:]*dlam)*(h*c/wave[1:])
+            var_F = np.sum(wave[1:]**2*var[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])**2*dlam**2)*(h*c/wave[1:])**2
+            Fref = np.sum(st_flux[1:]*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_wav[1:]*st_dlam)*(h*c/wave[1:])
 
             F[band] = F_/Fref
             eF[band] = np.sqrt(var_F)
