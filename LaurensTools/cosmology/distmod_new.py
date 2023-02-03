@@ -1,9 +1,12 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from copy import copy
 from scipy.optimize import minimize
 from astropy.cosmology import FlatLambdaCDM
 from kapteyn import kmpfit
 from numba import jit
+import emcee
+import corner
 
 """
 Here's how you use this:
@@ -32,6 +35,9 @@ guess_2 = [-18,1.5,0.5,0.5]
 res_2 = hd.fit('mle',guess_2)
 params = res_2.x
 
+In this module, we heavily borrow from:
+https://emcee.readthedocs.io/en/stable/tutorials/line
+
 """
 
 def evpec(z,vpec):
@@ -44,6 +50,9 @@ class tripp():
     functions for the standard distance modulus model:
     mu = Bmax - M - a*(c-np.mean(c)) - d*(dm15 - np.mean(dm15)) 
     """
+
+    def param_names(self):
+        return ['M','a','d','log(f)']
 
     def model(self,p,data):
         M,a,d = p
@@ -62,8 +71,20 @@ class tripp():
     def log_likelihood(self,p,data):
         M,a,d,log_f = p
         mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
-        sigma2 = evpec **2 + ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2 + self.model([M,a,d], data)**2 * np.exp(2 * log_f)
+        sigma2 = evpec**2 + ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2 + self.model([M,a,d], data)**2 * np.exp(2 * log_f)
         return -0.5 * np.sum((mu - self.model([M,a,d], data)) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
+
+    def log_prior(self,p):
+        M,a,d,log_f = p
+        if -20 < M < -16 and 0 < a < 6 and 0 < d < 3 and -10 < log_f < 10:
+            return 0.0
+        else: return -np.inf
+
+    def log_probability(self,p,data):
+        lp = self.log_prior(p)
+        if not np.isfinite(lp):
+            return -np.inf
+        else: return lp + self.log_likelihood(p,data)
 
     def jac(self,data):
         mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
@@ -180,15 +201,47 @@ class HubbleDiagram():
 
             return fitobj, np.array(err)
 
-        elif fitmethod == 'mle':
+        elif fitmethod == 'mle' or fitmethod == 'mcmc':
             # MLE and MCMC largely follow https://emcee.readthedocs.io/en/stable/tutorials/line/.
             # Recall that for MLE, you have an additional log_f parameter to guess.
             # So, if you have 3 fit parameters in your model, you need to input a list
             # of length 4 with the guess for log_f as the last entry. 
             nll = lambda *args: -self.mod.log_likelihood(*args)
             fitobj = minimize(nll,initial_guess,args=(self.input_data))
-            err = np.zeros(len(self.input_data[0]))
-            return fitobj, err
+
+            if fitmethod == 'mle':
+                err = np.zeros(len(self.input_data[0]))
+                return fitobj, err
+            elif fitmethod == 'mcmc':
+                pos = fitobj.x + 1e-4 + np.random.randn(32,len(fitobj.x))
+                nwalkers, ndim = pos.shape
+                sampler = emcee.EnsembleSampler(nwalkers,ndim,self.mod.log_probability,args=self.input_data)
+                sampler.run_mcmc(pos,5000,progress=True)
+
+                # Discard and flatten
+                tau = sampler.get_autocorr_time()
+                discard = int(2*np.max(tau))
+                flat_samples = sampler.get_chain(discard=discard,thin=15,flat=True)
+
+                for i in range(ndim):
+                    mcmc = np.percentile(flat_samples[:,i], [16,50,84])
+                    q = np.diff(mcmc)
+
+                def plot_diagnostics(self):
+                    fig_1, axes = plt.subplots(len(fitobj.x), figsize=(10,15), sharex=True)
+                    samples = sampler.get_chain()
+                    labels=self.mod.param_names()
+                    for i in range(ndim):
+                        ax = axes[i]
+                        ax.plot(samples[:,:,i], 'k', alpha=0.2, marker='None')
+                        ax.set_xlim(0,len(samples))
+                        ax.set_ylabel(labels[i])
+                    axes[-1].set_xlabel("step number")
+                    plt.tight_layout()
+                    plt.show()
+
+                    fig_2 = corner.corner(flat_samples,labels=labels)
+
 
     @jit(forceobj=True)
     def loocv(self,fitmethod,initial_guess,scale_errors=False):
