@@ -1,7 +1,9 @@
 import numpy as np
+from copy import copy
 from scipy.optimize import minimize
 from astropy.cosmology import FlatLambdaCDM
 from kapteyn import kmpfit
+from numba import jit
 
 """
 Here's how you use this:
@@ -185,4 +187,38 @@ class HubbleDiagram():
             # of length 4 with the guess for log_f as the last entry. 
             nll = lambda *args: -self.mod.log_likelihood(*args)
             fitobj = minimize(nll,initial_guess,args=(self.input_data))
-            return fitobj
+            err = np.zeros(len(self.input_data[0]))
+            return fitobj, err
+
+    @jit(forceobj=True)
+    def loocv(self,fitmethod,initial_guess,scale_errors=False):
+        """
+        Leave-one-out cross-validation for your dataset. 
+        Generates LOOCV distance moduli and residuals. 
+        """
+
+        if fitmethod == 'ls':
+            get_pars = lambda p: p.params
+        elif fitmethod == 'mle':
+            get_pars = lambda p: p.x
+
+        test_mus, test_resids, test_errs = []
+
+        N = len(self.input_data[0])
+        indices = np.arange(0,len(self.input_data[0]+1,1))
+        original_input_data = copy(self.input_data)
+        for i in range(N):
+            mask=(indices==i)
+            # Need to redefine self.input_data so self.fit() will use
+            # it without data i. So, from here on, self.input_data
+            # is the training data set, missing data point i. We'll
+            # put it back to its original state at the end. 
+            self.input_data = [dat[~mask] for dat in original_input_data]
+            test_args = original_input_data[mask]
+            train_fitobj, train_err = self.fit(fitmethod,initial_guess,scale_errors)
+            test_mu = self.mod.model(get_pars(train_fitobj),test_args)
+
+            ### THIS FUNCTION IS INCOMPLETE. 
+
+        # Now that we're done, put your self.input_data back to its rightful place.
+        self.input_data = original_input_data
