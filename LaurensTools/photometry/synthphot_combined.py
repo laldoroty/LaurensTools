@@ -209,9 +209,9 @@ def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=F
         for band in filters:
             responsefunc_interp = interp1d(responsefunc[band]['wavelength'], responsefunc[band]['transmission'],kind='linear',bounds_error=False)
 
-            F_ = np.sum(flux[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])*wave[1:]*dlam)
-            var_F = np.sum(wave[1:]**2*var[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])**2*dlam**2)
-            Fref = np.sum(st_flux[1:]*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_wav[1:]*st_dlam)
+            F_ = np.sum(flux[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])*wave[1:]*dlam)/(h*c)
+            var_F = np.sum(wave[1:]**2*var[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])**2*dlam**2)/(h*c)**2
+            Fref = np.sum(st_flux[1:]*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_wav[1:]*st_dlam)/(h*c)
 
             F[band] = F_/Fref
             eF[band] = np.sqrt(var_F)

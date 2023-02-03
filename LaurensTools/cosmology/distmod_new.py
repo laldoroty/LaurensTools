@@ -60,38 +60,12 @@ class tripp():
     def log_likelihood(self,p,data):
         M,a,d,log_f = p
         mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
-        sigma2 = ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2 + self.model([M,a,d], data)**2 * np.exp(2 * log_f)
+        sigma2 = evpec **2 + ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2 + self.model([M,a,d], data)**2 * np.exp(2 * log_f)
         return -0.5 * np.sum((mu - self.model([M,a,d], data)) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
 
     def jac(self,data):
         mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
         return np.array([-np.ones(len(bvmax)), -bvmax+np.mean(bvmax), -dm15+np.mean(dm15)], dtype='object').T
-
-class salt():
-    """
-    Defines model, residual, and log likelihood functions for
-    the standard SALT distance modulus model:
-    mu = Bmax - M + a*x1 - b*c 
-    """
-
-    def model(self,p,data):
-        M,a,b = p
-        bmax,x1,c = data
-        return bmax - M + a*x1 - b*c
-
-    def resid_func(self,p,data):
-        M,a,b = p
-        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data
-        num = mu - (bmax - M + a*x1 - b*c)
-        den = np.sqrt(evpec**2 + 
-            ebmax**2 + a**2*ex1**2 + b**2*ec**2)
-        return num/den
-
-    def log_likelihood(self,p,data):
-        M,a,b,log_f = p
-        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data
-        sigma2 = ebmax**2 + a**2*ex1**2 + b**2*ec**2 + self.model([M,a,b], data)**2 * np.exp(2 * log_f)
-        return -0.5 * np.sum((mu - self.model([M,a,b], data)) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
 
 class HubbleDiagram():
     def __init__(self,model,H0=70,Om0=0.3,
