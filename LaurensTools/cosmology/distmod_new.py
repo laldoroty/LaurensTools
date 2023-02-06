@@ -6,6 +6,7 @@ from astropy.cosmology import FlatLambdaCDM
 from kapteyn import kmpfit
 from numba import jit
 from .support_funcs import *
+from .models import *
 import emcee
 import corner
 
@@ -40,56 +41,6 @@ In this module, we heavily borrow from:
 https://emcee.readthedocs.io/en/stable/tutorials/line
 
 """
-
-def evpec(z,vpec):
-    speedoflight = 299792.458 # speed of light, km/s  
-    return (5/np.log(10))*(vpec/(speedoflight*z)) # error from peculiar velocity, units are magnitudes 
-
-class tripp():
-    """
-    Defines model, residual, Jacobian, and log likelihood 
-    functions for the standard distance modulus model:
-    mu = Bmax - M - a*(c-np.mean(c)) - d*(dm15 - np.mean(dm15)) 
-    """
-
-    def param_names(self):
-        return ['M','a','d','log(f)']
-
-    def model(self,p,data):
-        M,a,d = p
-        mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
-        return bmax - M - a*(bvmax-np.mean(bvmax)) - d*(dm15 - np.mean(dm15))
-
-    def resid_func(self,p,data):
-        M,a,d = p
-        mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
-        num = mu - self.model(p,data)
-        den = np.sqrt(evpec**2 + 
-            ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2)
-        return num/den
-
-    def log_likelihood(self,p,data):
-        M,a,d,log_f = p
-        mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
-        sigma2 = evpec**2 + ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2 + self.model([M,a,d], data)**2 * np.exp(2 * log_f)
-        return -0.5 * np.sum((mu - self.model([M,a,d], data)) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
-
-    def log_prior(self,p):
-        M,a,d,log_f = p
-        if -20 < M < -16 and 0 < a < 6 and 0 < d < 3 and -10 < log_f < 10:
-            return 0.0
-        else: return -np.inf
-
-    def log_probability(self,p,data):
-        lp = self.log_prior(p)
-        if not np.isfinite(lp):
-            return -np.inf
-        else: return lp + self.log_likelihood(p,data)
-
-    def jac(self,data):
-        mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
-        return np.array([-np.ones(len(bvmax)), -bvmax+np.mean(bvmax), -dm15+np.mean(dm15)], dtype='object').T
-
 class HubbleDiagram():
     def __init__(self,model,H0=70,Om0=0.3,
                     bmax=None, ebmax=None,
@@ -100,29 +51,23 @@ class HubbleDiagram():
                     vpec=None,
                     z=None):
 
-        self.bmax=bmax
-        self.ebmax=ebmax
-        self.bvmax=bvmax
-        self.ebvmax=ebvmax
-        self.dm15=dm15
-        self.edm15=edm15
-        self.x1=x1
-        self.ex1=ex1
-        self.c=c
-        self.ec=ec
-        self.vpec=vpec
-        self.evpec=evpec(z,vpec)
+        self.bmax,self.ebmax=bmax,ebmax
+        self.bvmax,self.ebvmax=bvmax,ebvmax
+        self.dm15,self.edm15=dm15,edm15
+        self.x1,self.ex1=x1,ex1
+        self.c,self.ec=c,ec
+        self.vpec,self.evpec=vpec,evpec(z,vpec)
         self.z=z
 
         self.model = model
         self.cosmo = FlatLambdaCDM(H0=H0,Om0=Om0)
         self.mu = self.cosmo.distmod(self.z).value
 
-        models = ['tripp','salt','H18','A23']
+        models = ['tripp','salt']
         if model not in models:
             raise(ValueError(f'Argument model must be in {models}.'))    
         elif self.model == 'tripp':
-            self.mod = tripp()  
+            self.mod = tripp()
             self.input_data = [self.mu,self.bmax,self.ebmax,
                             self.bvmax,self.ebvmax,
                             self.dm15,self.edm15,
@@ -178,7 +123,7 @@ class HubbleDiagram():
         as well as anything else accessible from 
         self.sampler, which is an instance of:
         https://emcee.readthedocs.io/en/stable/user/sampler/ 
-        
+
         """
 
         fit_methods = ['ls','mle','mcmc']
