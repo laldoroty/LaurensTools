@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from copy import copy
+from copy import copy, deepcopy
 from scipy.optimize import minimize
 from astropy.cosmology import FlatLambdaCDM
 from kapteyn import kmpfit
@@ -177,26 +177,30 @@ class HubbleDiagram():
 
             if scale_errors:
                 print('Errors will be scaled such that chi^2 = dof.')
-                redchi = fitobj.rchi2_min
-                print('reduced chi before', redchi)
+                redchi = deepcopy(fitobj.rchi2_min)
+                scaled_input_data = deepcopy(self.input_data)
                 error_vars = [self.ebmax,self.ebvmax,self.edm15,
                                 self.ex1,self.ec,self.evpec]
                 for var in error_vars:
                     try:
                         idx = [idx for idx, ele in enumerate(self.input_data) if np.array_equal(ele,var)][0]
-                        self.input_data[idx] *= np.sqrt(redchi)
+                        scaled_input_data[idx] *= np.sqrt(redchi)
                     except IndexError: pass
 
                 fitobj = kmpfit.Fitter(residuals=self.mod.resid_func, 
-                                    data=tuple(self.input_data))
+                                    data=tuple(scaled_input_data))
                 fitobj.fit(params0=initial_guess)
 
-                print('reduced chi after,', fitobj.rchi2_min)
+                jacobian = self.mod.jac(scaled_input_data)
+                err = np.zeros(len(scaled_input_data[0]))
+                evpec_err = deepcopy(self.evpec)*np.sqrt(redchi)
+            else:
+                jacobian = self.mod.jac(self.input_data)
+                err = np.zeros(len(self.input_data[0]))
+                evpec_err = deepcopy(self.evpec)
 
-            jacobian = self.mod.jac(self.input_data)
-            err = np.zeros(len(self.evpec))
             for i, j in enumerate(jacobian):
-                err[i] = np.sqrt(float(j @ fitobj.covar @ j.T) + self.evpec[i]**2)
+                err[i] = np.sqrt(float(j @ fitobj.covar @ j.T) + evpec_err[i]**2)
 
             return fitobj, np.array(err)
 
