@@ -62,8 +62,7 @@ class tripp():
     def resid_func(self,p,data):
         M,a,d = p
         mu,bmax,ebmax,bvmax,ebvmax,dm15,edm15,z,evpec = data
-        num = mu - (bmax - M - a*(bvmax-np.mean(bvmax)) - 
-            d*(dm15 - np.mean(dm15)))
+        num = mu - self.model(p,data)
         den = np.sqrt(evpec**2 + 
             ebmax**2 + a**2*ebvmax**2 + d**2*edm15**2)
         return num/den
