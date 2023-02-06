@@ -167,15 +167,18 @@ class HubbleDiagram():
         Iterations:                 , fitobj.nit)
 
         If using fitmethod='mcmc', attributes are:
-        Iterations: self.niter
-        Number of fit parameters: self.ndim
-        self.nwalkers
-        self.fitobj
-        self.sampler
-        self.flat_samples
-        self.params
-        self.xerror
+        Iterations:                 , self.niter
+        Number of fit parameters:   , self.ndim
+        Number of walkers           , self.nwalkers
+        emcee object:               , self.sampler
+        MCMC sample chain:          , self.flat_samples
+        Best-fit parameters:        , self.params
+        Lower & upper error         , self.xerror
 
+        as well as anything else accessible from 
+        self.sampler, which is an instance of:
+        https://emcee.readthedocs.io/en/stable/user/sampler/ 
+        
         """
 
         fit_methods = ['ls','mle','mcmc']
@@ -262,7 +265,9 @@ class HubbleDiagram():
             # Need to redefine self.input_data so self.fit() will use
             # it without data i. So, from here on, self.input_data
             # is the training data set, missing data point i. We'll
-            # put it back to its original state at the end. 
+            # put it back to its original state at the end. This is
+            # probably bad practice, but that's how it's going to be
+            # for now. 
             self.input_data = [dat[~mask] for dat in original_input_data]
             test_args = original_input_data[mask]
             train_fitobj, train_err = self.fit(fitmethod,initial_guess,scale_errors)

@@ -4,13 +4,19 @@ from scipy.optimize import curve_fit
 from lmfit import Model
 import matplotlib.pyplot as plt
 
+"""
+NOTE TO SELF: This is pretty messy. I want to
+rewrite it. 
+"""
+
 def find_nearest(array, value):
     array = np.asarray(array)
     idx = (np.abs(array-value)).argmin()
     return idx
 
 def moving_avg(xvals, array):
-    # Smooths out the spectrum so you don't get a bad pEW measurement from an unusual spike or dip in noisy data.
+    # Smooths out the spectrum so you don't get a bad pEW measurement 
+    # from an unusual spike or dip in noisy data.
     # Use this to find the continuum only, not in Gaussian fitting. 
     mv_avg = []
     x_avg = []
@@ -20,9 +26,9 @@ def moving_avg(xvals, array):
     return np.array(x_avg), np.array(mv_avg)
 
 def gaus(x,a,x0,sigma):
-    # The 1 is because I have normalized the spectrum to the continuum around the line.
+    # The 1 is because I have normalized the spectrum to the 
+    # continuum around the line.
     return 1 + a*(1/(sigma*np.sqrt(2*np.pi)))*np.exp(-(x-x0)**2/(2*sigma**2))
-    # return 1 + a*np.exp(-(x-x0)**2/(2*sigma**2))
 
 def normalize(wave,flux,start_lam,end_lam,var=None):
     """

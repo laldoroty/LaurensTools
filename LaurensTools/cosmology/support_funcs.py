@@ -4,6 +4,26 @@ import emcee
 import corner
 
 class emcee_object():
+    """
+    Creates emcee results object so that in the
+    main module, fitmethod='mcmc' can be treated
+    exactly the same as the other fitmethods,
+    i.e., so the results are attributes of an
+    object. 
+    
+    Attributes are:
+    Iterations:                 , self.niter
+    Number of fit parameters:   , self.ndim
+    Number of walkers           , self.nwalkers
+    emcee object:               , self.sampler
+    MCMC sample chain:          , self.flat_samples
+    Best-fit parameters:        , self.params
+    Lower & upper error         , self.xerror
+
+    as well as anything else accessible from 
+    self.sampler, which is an instance of:
+    https://emcee.readthedocs.io/en/stable/user/sampler/ 
+    """
     def __init__(self):
         self.niter, self.ndim, self.nwalkers = None, None, None
         self.fitobj, self.sampler = None, None
