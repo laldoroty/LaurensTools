@@ -5,6 +5,7 @@ from scipy.optimize import minimize
 from astropy.cosmology import FlatLambdaCDM
 from kapteyn import kmpfit
 from numba import jit
+from .support_funcs import *
 import emcee
 import corner
 
@@ -165,9 +166,19 @@ class HubbleDiagram():
         Inverse Hessian:            , fitobj.hess_inv)
         Iterations:                 , fitobj.nit)
 
+        If using fitmethod='mcmc', attributes are:
+        Iterations: self.niter
+        Number of fit parameters: self.ndim
+        self.nwalkers
+        self.fitobj
+        self.sampler
+        self.flat_samples
+        self.params
+        self.xerror
+
         """
 
-        fit_methods = ['ls','mle']
+        fit_methods = ['ls','mle','mcmc']
         if fitmethod not in fit_methods:
             raise(ValueError(f'Argument fitmethod must be in {fit_methods}.'))   
         elif fitmethod == 'ls':
@@ -216,34 +227,16 @@ class HubbleDiagram():
                 err = np.zeros(len(self.input_data[0]))
                 return fitobj, err
             elif fitmethod == 'mcmc':
-                pos = fitobj.x + 1e-4 + np.random.randn(32,len(fitobj.x))
-                nwalkers, ndim = pos.shape
-                sampler = emcee.EnsembleSampler(nwalkers,ndim,self.mod.log_probability,args=self.input_data)
-                sampler.run_mcmc(pos,5000,progress=True)
-
-                # Discard and flatten
-                tau = sampler.get_autocorr_time()
-                discard = int(2*np.max(tau))
-                flat_samples = sampler.get_chain(discard=discard,thin=15,flat=True)
-
-                for i in range(ndim):
-                    mcmc = np.percentile(flat_samples[:,i], [16,50,84])
-                    q = np.diff(mcmc)
-
+                ### TODO: THIS DOES NOT WORK YET
+                mc = emcee_object()
+                print('self.input_data')
+                print(len(self.input_data))
+                print(self.input_data)
+                fitmc = mc.run_emcee(fitobj,5000,self.mod.log_probability,self.input_data)
                 def plot_diagnostics(self):
-                    fig_1, axes = plt.subplots(len(fitobj.x), figsize=(10,15), sharex=True)
-                    samples = sampler.get_chain()
-                    labels=self.mod.param_names()
-                    for i in range(ndim):
-                        ax = axes[i]
-                        ax.plot(samples[:,:,i], 'k', alpha=0.2, marker='None')
-                        ax.set_xlim(0,len(samples))
-                        ax.set_ylabel(labels[i])
-                    axes[-1].set_xlabel("step number")
-                    plt.tight_layout()
-                    plt.show()
+                    mc.plot_diagnostics_(self)
 
-                    fig_2 = corner.corner(flat_samples,labels=labels)
+                return mc.params, mc.xerror
 
 
     @jit(forceobj=True)
@@ -253,10 +246,11 @@ class HubbleDiagram():
         Generates LOOCV distance moduli and residuals. 
         """
 
-        if fitmethod == 'ls':
-            get_pars = lambda p: p.params
-        elif fitmethod == 'mle':
-            get_pars = lambda p: p.x
+        def get_pars(p):
+            if fitmethod == 'ls':
+               return p.params
+            elif fitmethod == 'mle':
+                return p.x
 
         test_mus, test_resids, test_errs = []
 
