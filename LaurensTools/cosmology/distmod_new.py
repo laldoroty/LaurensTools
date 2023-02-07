@@ -51,14 +51,14 @@ class HubbleDiagram():
                     vpec=None,
                     z=None):
 
-        self.bmax,self.ebmax=bmax,ebmax
-        self.bvmax,self.ebvmax=bvmax,ebvmax
-        self.dm15,self.edm15=dm15,edm15
-        self.x1,self.ex1=x1,ex1
-        self.c,self.ec=c,ec
-        self.vpec,self.evpec=vpec,evpec(z,vpec)
-        self.z=z
-
+        self.bmax,self.ebmax=np.array(bmax),np.array(ebmax)
+        self.bvmax,self.ebvmax=np.array(bvmax),np.array(ebvmax)
+        self.dm15,self.edm15=np.array(dm15),np.array(edm15)
+        self.x1,self.ex1=np.array(x1),np.array(ex1)
+        self.c,self.ec=np.array(c),np.array(ec)
+        self.z=np.array(z)
+        self.vpec,self.evpec=np.array(vpec),evpec(self.z,np.array(vpec))
+        
         self.model = model
         self.cosmo = FlatLambdaCDM(H0=H0,Om0=Om0)
         self.mu = self.cosmo.distmod(self.z).value
@@ -78,6 +78,35 @@ class HubbleDiagram():
                             self.x1,self.ex1,
                             self.c,self.ec,
                             self.z,self.evpec]
+
+        # Finally, ditch everything with NaNs. The fitters
+        # don't like them. If there are NaNs, of course. 
+        nan_check = [np.isnan(np.array(dlist)).any() for dlist in self.input_data]
+        if np.array(nan_check).any():
+            old_input_data = deepcopy(self.input_data)
+            self.input_data = []
+            drop_idx = []
+            for dlist in old_input_data:
+                idx = np.argwhere(np.isnan(dlist)).flatten()
+                for i in idx:
+                    if i not in drop_idx:
+                        drop_idx.append(i)
+
+            mask = [~np.isin(i,drop_idx) for i in range(len(old_input_data[0]))]
+            for dlist in old_input_data:
+                self.input_data.append(dlist[mask])
+
+            if self.model == 'tripp':
+                self.mu,self.bmax,self.ebmax, \
+                self.bvmax,self.ebvmax, \
+                self.dm15,self.edm15, \
+                self.z,self.evpec = self.input_data
+            elif self.model == 'salt':
+                self.mu,self.bmax,self.ebmax, \
+                self.x1,self.ex1, \
+                self.c,self.ec, \
+                self.z,self.evpec = self.input_data
+        
 
     def fit(self,fitmethod,initial_guess,scale_errors=False):
         """
@@ -128,8 +157,9 @@ class HubbleDiagram():
 
         fit_methods = ['ls','mle','mcmc']
         if fitmethod not in fit_methods:
-            raise(ValueError(f'Argument fitmethod must be in {fit_methods}.'))   
-        elif fitmethod == 'ls':
+            raise(ValueError(f'Argument fitmethod must be in {fit_methods}.')) 
+   
+        if fitmethod == 'ls':
             fitobj = kmpfit.Fitter(residuals=self.mod.resid_func, 
                                     data=tuple(self.input_data))
             fitobj.fit(params0=initial_guess)
@@ -193,7 +223,6 @@ class HubbleDiagram():
         Leave-one-out cross-validation for your dataset. 
         Generates LOOCV distance moduli and residuals. 
         """
-
         def get_pars(p):
             if fitmethod == 'ls':
                return p.params

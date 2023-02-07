@@ -61,6 +61,17 @@ def weighted_covariance(xi,yi,exi,eyi):
 
     return weighted_expectation((X_EX*Y_EY),np.sqrt(Y_EY**2*exi**2+X_EX**2*eyi**2))
 
+def wRMS(xi,exi):
+    """
+    LNA 20230207
+    Returns the weighted RMS of a sample.
+    xi -- array of data
+    exi -- array of data errors (square root of variance)
+    """
+    num = np.sum(xi**2/exi**2)
+    den = np.sum(1/exi**2)
+    return np.sqrt(num/den)
+
 def weighted_corr(xi,yi,exi,eyi):
     """
     Pearson Correlation coefficient, weighted by errors.

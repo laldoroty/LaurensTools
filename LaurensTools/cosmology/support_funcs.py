@@ -36,7 +36,11 @@ class emcee_object():
         self.fitobj = fitobj
         pos = fitobj.x + 1e-4 + np.random.randn(32,len(fitobj.x))
         self.nwalkers, self.ndim = pos.shape
-        self.sampler = emcee.EnsembleSampler(self.nwalkers,self.ndim,log_probability,args=tuple(data))
+        print('data')
+        print(len(data))
+        print('tuple data')
+        print(len(tuple(data)))
+        self.sampler = emcee.EnsembleSampler(self.nwalkers,self.ndim,log_probability,args=(data))
         self.sampler.run_mcmc(pos,self.niter,progress=True)
 
         # Discard and flatten
