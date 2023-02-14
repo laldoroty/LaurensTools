@@ -34,31 +34,19 @@ class emcee_object():
     def run_emcee(self,fitobj,niter,log_probability,data):
         self.niter = niter
         self.fitobj = fitobj
-        pos = fitobj.x + 1e-4 + np.random.randn(32,len(fitobj.x))
+        pos = fitobj.x + 1e-4 * np.random.randn(32,len(fitobj.x))
         self.nwalkers, self.ndim = pos.shape
         self.sampler = emcee.EnsembleSampler(self.nwalkers,self.ndim,log_probability,args=tuple(data))
-        run = self.sampler.run_mcmc(pos,self.niter,progress=True)
-        print('chain length', len(self.sampler.get_chain()))
-        print('self.sampler.run_mcmc()')
-        print(run)
+        run = self.sampler.run_mcmc(pos,self.niter,progress=True,skip_initial_state_check=False)
 
         # Discard and flatten
-        ### THIS IS THE PROBLEM: Although results are
-        ### coming out reasonably, my autocorr times are
-        ###  yielding nans in one or more parameters. 
         tau = self.sampler.get_autocorr_time()
-        print('tau', tau)
-        print('chain',self.sampler.get_chain())
-        # discard = int(2*np.max(tau))
-        # self.flat_samples = self.sampler.get_chain(discard=discard,thin=15,flat=True)
+        discard = int(2*np.max(tau))
+        self.flat_samples = self.sampler.get_chain(discard=discard,thin=15,flat=True)
         self.flat_samples = self.sampler.get_chain(flat=True)
-        print('self.flat_samples')
-        print(self.flat_samples)
 
         for i in range(self.ndim):
             mcmc = np.percentile(self.flat_samples[:,i], [16,50,84])
-            print('mcmc np percentile flat samples')
-            print(mcmc)
             q = np.diff(mcmc)
             self.params.append(np.array(mcmc[1]))
             mcmc_errors = np.array([q[0],q[1]])

@@ -205,7 +205,6 @@ class HubbleDiagram():
                 err = np.zeros(len(self.input_data[0]))
                 return fitobj, err
             elif fitmethod == 'mcmc':
-                ### TODO: THIS DOES NOT WORK YET
                 mc = emcee_object()
                 fitmc = mc.run_emcee(fitobj,mcmc_niter,self.mod.log_probability,self.input_data)
                 
