@@ -35,7 +35,7 @@ class tripp():
 
     def log_prior(self,p):
         M,a,d,log_f = p
-        if -20 < M < -16 and 0 < a < 6 and 0 < d < 3 and -10 < log_f < 10:
+        if -22 < M < -16 and 0 < a < 6 and 0 < d < 3 and -10 < log_f < 10:
             return 0.0
         else: return -np.inf
 

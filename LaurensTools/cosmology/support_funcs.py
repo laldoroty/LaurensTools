@@ -36,30 +36,41 @@ class emcee_object():
         self.fitobj = fitobj
         pos = fitobj.x + 1e-4 + np.random.randn(32,len(fitobj.x))
         self.nwalkers, self.ndim = pos.shape
-        self.sampler = emcee.EnsembleSampler(self.nwalkers,self.ndim,log_probability,args=data)
-        self.sampler.run_mcmc(pos,self.niter,progress=True)
+        self.sampler = emcee.EnsembleSampler(self.nwalkers,self.ndim,log_probability,args=tuple(data))
+        run = self.sampler.run_mcmc(pos,self.niter,progress=True)
+        print('chain length', len(self.sampler.get_chain()))
+        print('self.sampler.run_mcmc()')
+        print(run)
 
         # Discard and flatten
+        ### THIS IS THE PROBLEM: Although results are
+        ### coming out reasonably, my autocorr times are
+        ###  yielding nans in one or more parameters. 
         tau = self.sampler.get_autocorr_time()
         print('tau', tau)
         print('chain',self.sampler.get_chain())
-        discard = int(2*np.max(tau))
-        self.flat_samples = self.sampler.get_chain(discard=discard,thin=15,flat=True)
+        # discard = int(2*np.max(tau))
+        # self.flat_samples = self.sampler.get_chain(discard=discard,thin=15,flat=True)
+        self.flat_samples = self.sampler.get_chain(flat=True)
+        print('self.flat_samples')
+        print(self.flat_samples)
 
         for i in range(self.ndim):
             mcmc = np.percentile(self.flat_samples[:,i], [16,50,84])
+            print('mcmc np percentile flat samples')
+            print(mcmc)
             q = np.diff(mcmc)
-            self.params.append(mcmc[1])
-            mcmc_errors = (q[0],q[1])
+            self.params.append(np.array(mcmc[1]))
+            mcmc_errors = np.array([q[0],q[1]])
             self.xerror.append(mcmc_errors)
 
         self.params = np.array(self.params)
         self.xerror = np.array(self.xerror)
 
-    def plot_diagnostics_(self):
+    def plot_diagnostics_(self,param_names):
         fig_1, axes = plt.subplots(len(self.fitobj.x), figsize=(10,15), sharex=True)
         samples = self.sampler.get_chain()
-        labels=self.mod.param_names()
+        labels = param_names
         for i in range(self.ndim):
             ax = axes[i]
             ax.plot(samples[:,:,i], 'k', alpha=0.2, marker='None')

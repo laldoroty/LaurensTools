@@ -108,7 +108,7 @@ class HubbleDiagram():
                 self.z,self.evpec = self.input_data
         print('self.input_data',len(self.input_data))
 
-    def fit(self,fitmethod,initial_guess,scale_errors=False):
+    def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=10000,plot_mcmc_diagnostics=False):
         """
         LNA 20230130
 
@@ -207,10 +207,10 @@ class HubbleDiagram():
             elif fitmethod == 'mcmc':
                 ### TODO: THIS DOES NOT WORK YET
                 mc = emcee_object()
-                fitmc = mc.run_emcee(fitobj,10000,self.mod.log_probability,self.input_data)
+                fitmc = mc.run_emcee(fitobj,mcmc_niter,self.mod.log_probability,self.input_data)
                 
-                def plot_diagnostics(self):
-                    mc.plot_diagnostics_(self)
+                if plot_mcmc_diagnostics:
+                    mc.plot_diagnostics_(self.mod.param_names())
 
                 return mc.params, mc.xerror
 
