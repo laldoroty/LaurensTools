@@ -39,7 +39,7 @@ class tripp():
             return 0.0
         else: return -np.inf
 
-    def log_probability(self,p,data):
+    def log_probability(self,p,*data):
         lp = self.log_prior(p)
         if not np.isfinite(lp):
             return -np.inf
@@ -85,7 +85,7 @@ class salt():
             return 0.0
         else: return -np.inf
 
-    def log_probability(self,p,data):
+    def log_probability(self,p,*data):
         lp = self.log_prior(p)
         if not np.isfinite(lp):
             return -np.inf

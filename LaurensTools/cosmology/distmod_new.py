@@ -106,7 +106,7 @@ class HubbleDiagram():
                 self.x1,self.ex1, \
                 self.c,self.ec, \
                 self.z,self.evpec = self.input_data
-        
+        print('self.input_data',len(self.input_data))
 
     def fit(self,fitmethod,initial_guess,scale_errors=False):
         """
@@ -207,10 +207,8 @@ class HubbleDiagram():
             elif fitmethod == 'mcmc':
                 ### TODO: THIS DOES NOT WORK YET
                 mc = emcee_object()
-                print('self.input_data')
-                print(len(self.input_data))
-                print(self.input_data)
-                fitmc = mc.run_emcee(fitobj,5000,self.mod.log_probability,self.input_data)
+                fitmc = mc.run_emcee(fitobj,10000,self.mod.log_probability,self.input_data)
+                
                 def plot_diagnostics(self):
                     mc.plot_diagnostics_(self)
 

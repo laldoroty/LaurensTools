@@ -36,15 +36,13 @@ class emcee_object():
         self.fitobj = fitobj
         pos = fitobj.x + 1e-4 + np.random.randn(32,len(fitobj.x))
         self.nwalkers, self.ndim = pos.shape
-        print('data')
-        print(len(data))
-        print('tuple data')
-        print(len(tuple(data)))
-        self.sampler = emcee.EnsembleSampler(self.nwalkers,self.ndim,log_probability,args=(data))
+        self.sampler = emcee.EnsembleSampler(self.nwalkers,self.ndim,log_probability,args=data)
         self.sampler.run_mcmc(pos,self.niter,progress=True)
 
         # Discard and flatten
         tau = self.sampler.get_autocorr_time()
+        print('tau', tau)
+        print('chain',self.sampler.get_chain())
         discard = int(2*np.max(tau))
         self.flat_samples = self.sampler.get_chain(discard=discard,thin=15,flat=True)
 
@@ -52,7 +50,8 @@ class emcee_object():
             mcmc = np.percentile(self.flat_samples[:,i], [16,50,84])
             q = np.diff(mcmc)
             self.params.append(mcmc[1])
-            self.xerror.append(tuple(q[0],q[1]))
+            mcmc_errors = (q[0],q[1])
+            self.xerror.append(mcmc_errors)
 
         self.params = np.array(self.params)
         self.xerror = np.array(self.xerror)
