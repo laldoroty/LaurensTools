@@ -51,13 +51,13 @@ class HubbleDiagram():
                     vpec=None,
                     z=None):
 
-        self.bmax,self.ebmax=np.array(bmax),np.array(ebmax)
-        self.bvmax,self.ebvmax=np.array(bvmax),np.array(ebvmax)
-        self.dm15,self.edm15=np.array(dm15),np.array(edm15)
-        self.x1,self.ex1=np.array(x1),np.array(ex1)
-        self.c,self.ec=np.array(c),np.array(ec)
-        self.z=np.array(z)
-        self.vpec,self.evpec=np.array(vpec),evpec(self.z,np.array(vpec))
+        self.bmax,self.ebmax=np.array(bmax,dtype='float64'),np.array(ebmax,dtype='float64')
+        self.bvmax,self.ebvmax=np.array(bvmax,dtype='float64'),np.array(ebvmax,dtype='float64')
+        self.dm15,self.edm15=np.array(dm15,dtype='float64'),np.array(edm15,dtype='float64')
+        self.x1,self.ex1=np.array(x1,dtype='float64'),np.array(ex1,dtype='float64')
+        self.c,self.ec=np.array(c,dtype='float64'),np.array(ec,dtype='float64')
+        self.z=np.array(z,dtype='float64')
+        self.vpec,self.evpec=np.array(vpec,dtype='float64'),evpec(self.z,np.array(vpec,dtype='float64'))
         
         self.model = model
         self.cosmo = FlatLambdaCDM(H0=H0,Om0=Om0)
@@ -106,9 +106,8 @@ class HubbleDiagram():
                 self.x1,self.ex1, \
                 self.c,self.ec, \
                 self.z,self.evpec = self.input_data
-        print('self.input_data',len(self.input_data))
 
-    def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=10000,plot_mcmc_diagnostics=False):
+    def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=5000,plot_mcmc_diagnostics=False):
         """
         LNA 20230130
 
@@ -206,12 +205,16 @@ class HubbleDiagram():
                 return fitobj, err
             elif fitmethod == 'mcmc':
                 mc = emcee_object()
-                fitmc = mc.run_emcee(fitobj,mcmc_niter,self.mod.log_probability,self.input_data)
+                fitmc = mc.run_emcee(fitobj,mcmc_niter,self.mod,self.input_data)
                 
                 if plot_mcmc_diagnostics:
-                    mc.plot_diagnostics_(self.mod.param_names())
+                    mc.plot_diagnostics_(self.mod.param_names().keys())
 
-                return mc.params, mc.xerror
+                all_par_est = mc.flat_samples.T[:-1].T
+                all_possible_models = np.apply_along_axis(self.mod.model,1,arr=all_par_est,data=self.input_data)
+
+                err = np.sqrt(np.apply_along_axis(np.std,0,all_possible_models)**2 + self.evpec**2)
+                return mc, err
 
 
     @jit(forceobj=True)

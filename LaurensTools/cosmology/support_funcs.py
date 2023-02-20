@@ -31,19 +31,24 @@ class emcee_object():
         self.params = []
         self.xerror = []
     
-    def run_emcee(self,fitobj,niter,log_probability,data):
+    def run_emcee(self,fitobj,niter,model,data):
         self.niter = niter
         self.fitobj = fitobj
-        pos = fitobj.x + 1e-4 * np.random.randn(32,len(fitobj.x))
+        ninit = 32
+        # pos = fitobj.x + 1e-4 * np.random.randn(32,len(fitobj.x))
+        pos = np.zeros((32,len(fitobj.x))).T
+        for i, par in enumerate(model.param_names().keys()):
+            pos[i] = np.random.uniform(model.param_names()[par][0],model.param_names()[par][1],ninit)
+        
+        pos = pos.T
         self.nwalkers, self.ndim = pos.shape
-        self.sampler = emcee.EnsembleSampler(self.nwalkers,self.ndim,log_probability,args=tuple(data))
+        self.sampler = emcee.EnsembleSampler(self.nwalkers,self.ndim,model.log_probability,args=tuple(data))
         run = self.sampler.run_mcmc(pos,self.niter,progress=True,skip_initial_state_check=False)
 
         # Discard and flatten
         tau = self.sampler.get_autocorr_time()
         discard = int(2*np.max(tau))
         self.flat_samples = self.sampler.get_chain(discard=discard,thin=15,flat=True)
-        self.flat_samples = self.sampler.get_chain(flat=True)
 
         for i in range(self.ndim):
             mcmc = np.percentile(self.flat_samples[:,i], [16,50,84])
@@ -58,13 +63,13 @@ class emcee_object():
     def plot_diagnostics_(self,param_names):
         fig_1, axes = plt.subplots(len(self.fitobj.x), figsize=(10,15), sharex=True)
         samples = self.sampler.get_chain()
-        labels = param_names
+        labels = list(param_names)
         for i in range(self.ndim):
             ax = axes[i]
             ax.plot(samples[:,:,i], 'k', alpha=0.2, marker='None')
             ax.set_xlim(0,len(samples))
             ax.set_ylabel(labels[i])
-        axes[-1].set_xlabel("step number")
+        axes[-1].set_xlabel("Step number")
         plt.tight_layout()
         plt.show()
 

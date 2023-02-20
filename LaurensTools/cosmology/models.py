@@ -12,7 +12,11 @@ class tripp():
     """
 
     def param_names(self):
-        return ['M','a','d','log(f)']
+        """
+        Parameter names with corresponding initializing bounds for
+        MCMC fitting. 
+        """
+        return {'M': [-22,-16],'a': [0,6],'d': [0,3],'log(f)': [-10,10]}
 
     def model(self,p,data):
         M,a,d = p
@@ -35,7 +39,11 @@ class tripp():
 
     def log_prior(self,p):
         M,a,d,log_f = p
-        if -22 < M < -16 and 0 < a < 6 and 0 < d < 3 and -10 < log_f < 10:
+        bounds_dict = self.param_names()
+        if bounds_dict['M'][0] < M < bounds_dict['M'][1] \
+        and bounds_dict['a'][0] < a < bounds_dict['a'][1] \
+        and bounds_dict['d'][0] < d < bounds_dict['d'][1] \
+        and bounds_dict['log(f)'][0] < log_f < bounds_dict['log(f)'][1]:
             return 0.0
         else: return -np.inf
 
@@ -58,7 +66,11 @@ class salt():
     """
 
     def param_names(self):
-        return ['M','a','b','log(f)']
+        """
+        Parameter names with corresponding initializing bounds for
+        MCMC fitting. 
+        """
+        return {'M': [-22,-17], 'a': [-2,2], 'b': [-2,5], 'log(f)': [-10,10]}
 
     def model(self,p,data):
         M,a,b = p
@@ -81,7 +93,11 @@ class salt():
 
     def log_prior(self,p):
         M,a,b,log_f = p
-        if -20 < M < -16 and -3 < a < 3 and -1 < b < 1 and -10 < log_f < 10:
+        bounds_dict = self.param_names()
+        if bounds_dict['M'][0] < M < bounds_dict['M'][1] \
+        and bounds_dict['a'][0] < a < bounds_dict['a'][1] \
+        and bounds_dict['b'][0] < b < bounds_dict['b'][1] \
+        and bounds_dict['log(f)'][0] < log_f < bounds_dict['log(f)'][1]:
             return 0.0
         else: return -np.inf
 
