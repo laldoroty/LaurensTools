@@ -8,7 +8,7 @@ from numba import jit
 from .support_funcs import *
 from .models import *
 import emcee
-import corner
+import os
 
 """
 Here's how you use this:
@@ -49,7 +49,8 @@ class HubbleDiagram():
                     x1=None, ex1=None,
                     c=None, ec=None,
                     vpec=None,
-                    z=None):
+                    z=None,
+                    names=None):
 
         self.bmax,self.ebmax=np.array(bmax,dtype='float64'),np.array(ebmax,dtype='float64')
         self.bvmax,self.ebvmax=np.array(bvmax,dtype='float64'),np.array(ebvmax,dtype='float64')
@@ -62,6 +63,8 @@ class HubbleDiagram():
         self.model = model
         self.cosmo = FlatLambdaCDM(H0=H0,Om0=Om0)
         self.mu = self.cosmo.distmod(self.z).value
+
+        self.names = np.array(names)
 
         models = ['tripp','salt']
         if model not in models:
@@ -107,7 +110,8 @@ class HubbleDiagram():
                 self.c,self.ec, \
                 self.z,self.evpec = self.input_data
 
-    def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=5000,plot_mcmc_diagnostics=False):
+    def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=5000,
+            plot_mcmc_diagnostics=False,savepath='distmod_figs'):
         """
         LNA 20230130
 
@@ -204,11 +208,18 @@ class HubbleDiagram():
                 err = np.zeros(len(self.input_data[0]))
                 return fitobj, err
             elif fitmethod == 'mcmc':
-                mc = emcee_object()
-                fitmc = mc.run_emcee(fitobj,mcmc_niter,self.mod,self.input_data)
+                mc = emcee_object(self.mod)
+                fitmc = mc.run_emcee(mcmc_niter,self.input_data)
                 
                 if plot_mcmc_diagnostics:
-                    mc.plot_diagnostics_(self.mod.param_names().keys())
+                    if savepath is not 'distmod_figs':
+                        savepath = os.path.join(savepath,'distmod_figs')
+                    path_exists = os.path.exists(savepath)
+                    if not path_exists:
+                        print('Creating save directory for MCMC diagnostic plots:',
+                              '\n',os.path.join(os.getcwd(),savepath))
+                        os.makedirs(savepath)
+                    mc.plot_diagnostics_(self.mod.param_names().keys(),savepath)
 
                 all_par_est = mc.flat_samples.T[:-1].T
                 all_possible_models = np.apply_along_axis(self.mod.model,1,arr=all_par_est,data=self.input_data)
@@ -228,6 +239,8 @@ class HubbleDiagram():
                return p.params
             elif fitmethod == 'mle':
                 return p.x
+            elif fitmethod == 'mcmc':
+                return p.params
 
         test_mus, test_resids, test_errs = []
 

@@ -11,6 +11,9 @@ class tripp():
     mu = Bmax - M - a*(c-np.mean(c)) - d*(dm15 - np.mean(dm15)) 
     """
 
+    def name(self):
+        return 'tripp'
+
     def param_names(self):
         """
         Parameter names with corresponding initializing bounds for
@@ -64,6 +67,9 @@ class salt():
     SALT parameters as inputs:
     mu = Bmax - M + a*x1 - b*c 
     """
+
+    def name(self):
+        return 'salt'
 
     def param_names(self):
         """
