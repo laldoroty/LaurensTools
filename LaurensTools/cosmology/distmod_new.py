@@ -48,15 +48,22 @@ class HubbleDiagram():
                     dm15=None, edm15=None,
                     x1=None, ex1=None,
                     c=None, ec=None,
+                    frni=None, efrni=None,
+                    bbv=None, ebbv=None,
+                    slope=None, eslope=None,
                     vpec=None,
                     z=None,
-                    names=None):
+                    names=None,
+                    info_tags=None):
 
         self.bmax,self.ebmax=np.array(bmax,dtype='float64'),np.array(ebmax,dtype='float64')
         self.bvmax,self.ebvmax=np.array(bvmax,dtype='float64'),np.array(ebvmax,dtype='float64')
         self.dm15,self.edm15=np.array(dm15,dtype='float64'),np.array(edm15,dtype='float64')
         self.x1,self.ex1=np.array(x1,dtype='float64'),np.array(ex1,dtype='float64')
         self.c,self.ec=np.array(c,dtype='float64'),np.array(ec,dtype='float64')
+        self.frni,self.efrni=np.array(frni,dtype='float64'),np.array(efrni,dtype='float64')
+        self.bbv,self.ebbv = np.array(bbv,dtype='float64'),np.array(ebbv,dtype='float64')
+        self.slope,self.eslope = np.array(slope,dtype='float64'),np.array(eslope,dtype='float64')
         self.z=np.array(z,dtype='float64')
         self.vpec,self.evpec=np.array(vpec,dtype='float64'),evpec(self.z,np.array(vpec,dtype='float64'))
         
@@ -65,8 +72,9 @@ class HubbleDiagram():
         self.mu = self.cosmo.distmod(self.z).value
 
         self.names = np.array(names)
+        self.info_tags = np.array(info_tags)
 
-        models = ['tripp','salt']
+        models = ['tripp','salt','H18','A23','FRNi']
         if model not in models:
             raise(ValueError(f'Argument model must be in {models}.'))    
         elif self.model == 'tripp':
@@ -81,6 +89,22 @@ class HubbleDiagram():
                             self.x1,self.ex1,
                             self.c,self.ec,
                             self.z,self.evpec]
+        elif self.model == 'FRNi':
+            self.mod = FRNi()
+            self.input_data = [self.mu,self.bmax,self.ebmax,
+                            self.frni,self.efrni,
+                            self.c,self.ec,
+                            self.z,self.evpec]
+        elif self.model == 'H18' or self.model == 'A23':
+            self.input_data = [self.mu,self.bmax,self.ebmax,
+                            self.dm15,self.edm15,
+                            self.bbv,self.ebbv,
+                            self.slope,self.eslope,
+                            self.z,self.evpec]
+            if self.model == 'H18':
+                self.mod = H18()
+            elif self.model == 'A23':
+                self.mod = A23()
 
         # Finally, ditch everything with NaNs. The fitters
         # don't like them. If there are NaNs, of course. 
@@ -108,6 +132,17 @@ class HubbleDiagram():
                 self.mu,self.bmax,self.ebmax, \
                 self.x1,self.ex1, \
                 self.c,self.ec, \
+                self.z,self.evpec = self.input_data
+            elif self.model == 'FRNi':
+                self.mu,self.bmax,self.ebmax, \
+                self.frni,self.efrni, \
+                self.c,self.ec, \
+                self.z,self.evpec = self.input_data
+            elif self.model == 'H18' or self.model == 'A23':
+                self.mu,self.bmax,self.ebmax, \
+                self.dm15,self.edm15, \
+                self.bbv,self.ebbv, \
+                self.slope,self.eslope, \
                 self.z,self.evpec = self.input_data
 
     def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=5000,
@@ -172,7 +207,9 @@ class HubbleDiagram():
                 redchi = deepcopy(fitobj.rchi2_min)
                 scaled_input_data = deepcopy(self.input_data)
                 error_vars = [self.ebmax,self.ebvmax,self.edm15,
-                                self.ex1,self.ec,self.evpec]
+                                self.ex1,self.ec,
+                                self.ebbv,self.eslope,
+                                self.evpec]
                 for var in error_vars:
                     try:
                         idx = [idx for idx, ele in enumerate(self.input_data) if np.array_equal(ele,var)][0]

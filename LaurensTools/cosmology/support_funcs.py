@@ -80,4 +80,3 @@ class emcee_object():
                                              # LaurensTools.utils.plotaesthetics
         fig_2.savefig(pa.join(savepath,f'mcmc_corner_{self.model.name()}.png'),
                       dpi=300,bbox_inches='tight')
-        fig_2.show()
