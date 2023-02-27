@@ -312,3 +312,64 @@ class A23():
         return np.array([-np.ones(len(bmax)), -(dm15 - np.mean(dm15)), 
                          (bbv - bmax)/slope + np.mean((bmax - bbv)/slope)], 
                          dtype='object').T
+
+class Slope():
+    """
+    Defines model, residual, Jacobian, and log likelihood
+    functions for the CMAGIC distance model from 
+    Aldoroty et al. 2023:
+    mu = BBV - M - b2*((bmax - BBV)/slope) - np.mean((bmax - BBV)/slope))
+    """
+    def name(self):
+        return 'slope'
+    
+    def param_names(self):
+        return {'M': [-20,-18], 'b2': [-5,1], 'log(f)': [-10,10]}
+    
+    def model(self,p,data):
+        M,b2 = p
+        mu,bmax,ebmax,bbv,ebbv,slope,eslope,z,evpec = data
+        return bbv - M - b2*(((bmax-bbv)/slope) - np.mean((bmax-bbv)/slope))
+    
+    def resid_func(self,p,data):
+        M,b2 = p
+        mu,bmax,ebmax,bbv,ebbv,slope,eslope,z,evpec = data
+        num = self.model(p,data) - mu
+
+        dbbv = b2/slope
+        dbmax = -(b2 - slope)/slope
+        dslope = b2*(bmax - bbv)*slope**(-2) - np.mean((bmax-bbv)/slope)
+        den = np.sqrt(ebbv**2*dbbv**2 + 
+                        ebmax**2*dbmax**2 + eslope**2*dslope**2 + evpec**2)
+        return num/den
+    
+    def log_likelihood(self,p,data):
+        M,b2,log_f = p
+        mu,bmax,ebmax,bbv,ebbv,slope,eslope,z,evpec = data
+
+        dbbv = b2/slope
+        dbmax = -(b2 - slope)/slope
+        dslope = b2*(bmax - bbv)*slope**(-2) - np.mean((bmax-bbv)/slope)
+        sigma2 = ebbv**2*dbbv**2 + ebmax**2*dbmax**2 + eslope**2*dslope**2 + evpec**2 + self.model([M,b2], data)**2 * np.exp(2 * log_f)
+        return -0.5 * np.sum((self.model([M,b2], data) - mu) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
+
+    def log_prior(self,p):
+        M,b2,log_f = p
+        bounds_dict = self.param_names()
+        if bounds_dict['M'][0] < M < bounds_dict['M'][1] \
+        and bounds_dict['b2'][0] < b2 < bounds_dict['b2'][1] \
+        and bounds_dict['log(f)'][0] < log_f < bounds_dict['log(f)'][1]:
+            return 0.0
+        else: return -np.inf
+
+    def log_probability(self,p,*data):
+        lp = self.log_prior(p)
+        if not np.isfinite(lp):
+            return -np.inf
+        else: return lp + self.log_likelihood(p,data)
+
+    def jac(self,data):
+        mu,bmax,ebmax,bbv,ebbv,slope,eslope,z,evpec = data
+        return np.array([-np.ones(len(bmax)),  
+                         (bbv - bmax)/slope + np.mean((bmax - bbv)/slope)], 
+                         dtype='object').T

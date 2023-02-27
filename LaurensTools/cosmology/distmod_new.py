@@ -74,7 +74,7 @@ class HubbleDiagram():
         self.names = np.array(names)
         self.info_tags = np.array(info_tags)
 
-        models = ['tripp','salt','H18','A23','FRNi']
+        models = ['tripp','salt','FRNi','H18','A23','slope']
         if model not in models:
             raise(ValueError(f'Argument model must be in {models}.'))    
         elif self.model == 'tripp':
@@ -105,6 +105,12 @@ class HubbleDiagram():
                 self.mod = H18()
             elif self.model == 'A23':
                 self.mod = A23()
+        elif self.model == 'slope':
+            self.mod = Slope()
+            self.input_data = [self.mu,self.bmax,self.ebmax,
+                            self.bbv,self.ebbv,
+                            self.slope,self.eslope,
+                            self.z,self.evpec]
 
         # Finally, ditch everything with NaNs. The fitters
         # don't like them. If there are NaNs, of course. 
@@ -141,6 +147,11 @@ class HubbleDiagram():
             elif self.model == 'H18' or self.model == 'A23':
                 self.mu,self.bmax,self.ebmax, \
                 self.dm15,self.edm15, \
+                self.bbv,self.ebbv, \
+                self.slope,self.eslope, \
+                self.z,self.evpec = self.input_data
+            elif self.model == 'slope':
+                self.mu,self.bmax,self.ebmax, \
                 self.bbv,self.ebbv, \
                 self.slope,self.eslope, \
                 self.z,self.evpec = self.input_data
