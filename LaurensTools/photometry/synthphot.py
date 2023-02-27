@@ -110,7 +110,7 @@ def load_filtersys(sys):
 
     return filtersys, zeropoints
 
-def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=False):
+def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',redshift_filters=None,verbose=False):
     """
     Retrieve flux in all bands for Bessell, SDSS, SNfactory top hat, or LSST filters.
     Filters are provided in photon counts, so this code converts ergs to photons
@@ -163,7 +163,10 @@ def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=F
         st_dlam = np.diff(st_wav)
 
         for band in filters:
-            responsefunc_interp = interp1d(responsefunc[band]['wavelength'], responsefunc[band]['transmission'],kind='linear',bounds_error=False)
+            if redshift_filters is not None:
+                redshift_factor = (1 + redshift_filters)
+            else: redshift_factor = 1
+            responsefunc_interp = interp1d(responsefunc[band]['wavelength']*redshift_factor, responsefunc[band]['transmission'],kind='linear',bounds_error=False)
 
             F_ = np.sum(flux[1:]*(h*c/wave[1:])*np.nan_to_num(responsefunc_interp(wave)[1:])*dlam)
             Fref = np.sum(st_flux[1:]*(h*c/st_wav[1:])*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_dlam)
@@ -174,7 +177,7 @@ def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=F
 
     return F, eF
 
-def synth_lc(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=False,return_flux=False):
+def synth_lc(wave,flux,var,sys=None,standard='vega',spec_units='ergs',redshift_filters=None,verbose=False,return_flux=False):
     """
     Make a synthetic magnitude from a spectrum using Bessell, SDSS, SNfactory top hat, or LSST filters. 
     Filters are provided in photon counts, so this code converts ergs to photons
@@ -191,7 +194,7 @@ def synth_lc(wave,flux,var,sys=None,standard='vega',spec_units='ergs',verbose=Fa
     convert_response -- 'ergs' or 'photons'. 'ergs' converts the response function to ergs. 'photons' converts it to photons. 
     """
 
-    flux, eflux = band_flux(wave,flux,var,sys=sys,standard=standard,spec_units=spec_units,verbose=verbose)
+    flux, eflux = band_flux(wave,flux,var,sys=sys,standard=standard,spec_units=spec_units,redshift_filters=redshift_filters,verbose=verbose)
     photometry = {}
     ephotometry = {}
 
