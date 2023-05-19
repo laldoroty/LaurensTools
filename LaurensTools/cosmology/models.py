@@ -19,7 +19,7 @@ class tripp():
         Parameter names with corresponding initializing bounds for
         MCMC fitting. 
         """
-        return {'M': [-20,-18],'a': [0,4],'d': [0,1.5],'log(f)': [-10,0]}
+        return {'M': [-20,-18],'a': [-4,4],'d': [-2,1.5],'log(f)': [-10,0]}
 
     def model(self,p,data):
         M,a,d = p
@@ -76,7 +76,7 @@ class salt():
         Parameter names with corresponding initializing bounds for
         MCMC fitting. 
         """
-        return {'M': [-21,-17], 'a': [-1,1], 'b': [-2,5], 'log(f)': [-10,10]}
+        return {'M': [-21,-17], 'a': [-1,3], 'b': [-3,6], 'log(f)': [-10,0]}
 
     def model(self,p,data):
         M,a,b = p
@@ -117,62 +117,62 @@ class salt():
         mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data
         return np.array([-np.ones(len(x1)), x1, -c], dtype='object').T
     
-class FRNi():
-    """
-    Defines model, residual, Jacobian, and log likelihood 
-    functions for the standard distance modulus model with
-    F R(Ni II) replacing dm15, and the SALT3 color parameter:
-    mu = Bmax - M + a*frni - b*c 
-    """
+# class FRNi():
+#     """
+#     Defines model, residual, Jacobian, and log likelihood 
+#     functions for the standard distance modulus model with
+#     F R(Ni II) replacing dm15, and the SALT3 color parameter:
+#     mu = Bmax - M + a*frni - b*c 
+#     """
 
-    def name(self):
-        return 'FRNi'
+#     def name(self):
+#         return 'FRNi'
 
-    def param_names(self):
-        """
-        Parameter names with corresponding initializing bounds for
-        MCMC fitting. 
-        """
-        return {'M': [-22,-18], 'a': [0,3], 'b': [0,5], 'log(f)': [-10,10]}
+#     def param_names(self):
+#         """
+#         Parameter names with corresponding initializing bounds for
+#         MCMC fitting. 
+#         """
+#         return {'M': [-26,-18], 'a': [-1,3], 'b': [-2,5], 'log(f)': [-10,10]}
 
-    def model(self,p,data):
-        M,a,b = p
-        mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
-        return bmax - M - a*frni - b*c
+#     def model(self,p,data):
+#         M,a,b = p
+#         mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
+#         return bmax - M - a*frni - b*c
 
-    def resid_func(self,p,data):
-        M,a,b = p
-        mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
-        num = self.model(p,data) - mu
-        den = np.sqrt(evpec**2 + 
-            ebmax**2 + a**2*efrni**2 + b**2*ec**2)
-        return num/den
+#     def resid_func(self,p,data):
+#         M,a,b = p
+#         mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
+#         num = self.model(p,data) - mu
+#         den = np.sqrt(evpec**2 + 
+#             ebmax**2 + a**2*efrni**2 + b**2*ec**2)
+#         return num/den
 
-    def log_likelihood(self,p,data):
-        M,a,b,log_f = p
-        mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
-        sigma2 = evpec**2 + ebmax**2 + a**2*efrni**2 + b**2*ec**2 + self.model([M,a,b], data)**2 * np.exp(2 * log_f)
-        return -0.5 * np.sum((self.model([M,a,b], data) - mu) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
+#     def log_likelihood(self,p,data):
+#         M,a,b,log_f = p
+#         mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
+#         sigma2 = evpec**2 + ebmax**2 + a**2*efrni**2 + b**2*ec**2 + self.model([M,a,b], data)**2 * np.exp(2 * log_f)
+#         return -0.5 * np.sum((self.model([M,a,b], data) - mu) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
 
-    def log_prior(self,p):
-        M,a,b,log_f = p
-        bounds_dict = self.param_names()
-        if bounds_dict['M'][0] < M < bounds_dict['M'][1] \
-        and bounds_dict['a'][0] < a < bounds_dict['a'][1] \
-        and bounds_dict['b'][0] < b < bounds_dict['b'][1] \
-        and bounds_dict['log(f)'][0] < log_f < bounds_dict['log(f)'][1]:
-            return 0.0
-        else: return -np.inf
+#     def log_prior(self,p):
+#         M,a,b,log_f = p
+#         bounds_dict = self.param_names()
+#         if bounds_dict['M'][0] < M < bounds_dict['M'][1] \
+#         and bounds_dict['a'][0] < a < bounds_dict['a'][1] \
+#         and bounds_dict['b'][0] < b < bounds_dict['b'][1] \
+#         and bounds_dict['log(f)'][0] < log_f < bounds_dict['log(f)'][1]:
+#             return 0.0
+#         else: return -np.inf
 
-    def log_probability(self,p,*data):
-        lp = self.log_prior(p)
-        if not np.isfinite(lp):
-            return -np.inf
-        else: return lp + self.log_likelihood(p,data)
+#     def log_probability(self,p,*data):
+#         lp = self.log_prior(p)
+#         if not np.isfinite(lp):
+#             return -np.inf
+#         else: return lp + self.log_likelihood(p,data)
 
-    def jac(self,data):
-        mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
-        return np.array([-np.ones(len(frni)), frni, -c], dtype='object').T
+#     def jac(self,data):
+#         mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
+#         return np.array([-np.ones(len(frni)), frni, -c], dtype='object').T
 
 class H18():
     """
@@ -187,7 +187,7 @@ class H18():
         return 'H18'
     
     def param_names(self):
-        return {'M': [-20,-16], 'delta': [-2,2], 'b2': [-2,2], 'log(f)': [-10,10]}
+        return {'M': [-20,-16], 'delta': [-2,2], 'b2': [-5,5], 'log(f)': [-20,10]}
     
     def model(self,p,data):
         M,delta,b2 = p
@@ -259,7 +259,7 @@ class A23():
         return 'A23'
     
     def param_names(self):
-        return {'M': [-20,-18], 'delta': [-3,3], 'b2': [-1,1], 'log(f)': [-10,10]}
+        return {'M': [-20,-18], 'delta': [-3,3], 'b2': [-3,5], 'log(f)': [-10,0]}
     
     def model(self,p,data):
         M,delta,b2 = p
@@ -324,7 +324,7 @@ class Slope():
         return 'slope'
     
     def param_names(self):
-        return {'M': [-20,-18], 'b2': [-5,1], 'log(f)': [-10,10]}
+        return {'M': [-20,-18], 'b2': [-5,5], 'log(f)': [-10,10]}
     
     def model(self,p,data):
         M,b2 = p

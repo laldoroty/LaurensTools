@@ -70,7 +70,8 @@ def wRMS(xi,exi):
     """
     num = np.sum(xi**2/exi**2)
     den = np.sum(1/exi**2)
-    return np.sqrt(num/den)
+    wrms = np.sqrt(num/den)
+    return wrms, np.std(exi)
 
 def weighted_corr(xi,yi,exi,eyi):
     """

@@ -7,6 +7,7 @@ from kapteyn import kmpfit
 from numba import jit
 from .support_funcs import *
 from .models import *
+from ..stats import wRMS
 import emcee
 import os
 
@@ -48,7 +49,7 @@ class HubbleDiagram():
                     dm15=None, edm15=None,
                     x1=None, ex1=None,
                     c=None, ec=None,
-                    frni=None, efrni=None,
+                    # frni=None, efrni=None,
                     bbv=None, ebbv=None,
                     slope=None, eslope=None,
                     vpec=None,
@@ -61,7 +62,7 @@ class HubbleDiagram():
         self.dm15,self.edm15=np.array(dm15,dtype='float64'),np.array(edm15,dtype='float64')
         self.x1,self.ex1=np.array(x1,dtype='float64'),np.array(ex1,dtype='float64')
         self.c,self.ec=np.array(c,dtype='float64'),np.array(ec,dtype='float64')
-        self.frni,self.efrni=np.array(frni,dtype='float64'),np.array(efrni,dtype='float64')
+        # self.frni,self.efrni=np.array(frni,dtype='float64'),np.array(efrni,dtype='float64')
         self.bbv,self.ebbv = np.array(bbv,dtype='float64'),np.array(ebbv,dtype='float64')
         self.slope,self.eslope = np.array(slope,dtype='float64'),np.array(eslope,dtype='float64')
         self.z=np.array(z,dtype='float64')
@@ -74,7 +75,12 @@ class HubbleDiagram():
         self.names = np.array(names)
         self.info_tags = np.array(info_tags)
 
-        models = ['tripp','salt','FRNi','H18','A23','slope']
+        self.fit_params = None
+        self.resids = None
+        self.eresids = None
+
+        # models = ['tripp','salt','FRNi','H18','A23','slope']
+        models = ['tripp','salt','H18','A23','slope']
         if model not in models:
             raise(ValueError(f'Argument model must be in {models}.'))    
         elif self.model == 'tripp':
@@ -89,12 +95,12 @@ class HubbleDiagram():
                             self.x1,self.ex1,
                             self.c,self.ec,
                             self.z,self.evpec]
-        elif self.model == 'FRNi':
-            self.mod = FRNi()
-            self.input_data = [self.mu,self.bmax,self.ebmax,
-                            self.frni,self.efrni,
-                            self.c,self.ec,
-                            self.z,self.evpec]
+        # elif self.model == 'FRNi':
+        #     self.mod = FRNi()
+        #     self.input_data = [self.mu,self.bmax,self.ebmax,
+        #                     self.frni,self.efrni,
+        #                     self.c,self.ec,
+        #                     self.z,self.evpec]
         elif self.model == 'H18' or self.model == 'A23':
             self.input_data = [self.mu,self.bmax,self.ebmax,
                             self.dm15,self.edm15,
@@ -139,11 +145,11 @@ class HubbleDiagram():
                 self.x1,self.ex1, \
                 self.c,self.ec, \
                 self.z,self.evpec = self.input_data
-            elif self.model == 'FRNi':
-                self.mu,self.bmax,self.ebmax, \
-                self.frni,self.efrni, \
-                self.c,self.ec, \
-                self.z,self.evpec = self.input_data
+            # elif self.model == 'FRNi':
+            #     self.mu,self.bmax,self.ebmax, \
+            #     self.frni,self.efrni, \
+            #     self.c,self.ec, \
+            #     self.z,self.evpec = self.input_data
             elif self.model == 'H18' or self.model == 'A23':
                 self.mu,self.bmax,self.ebmax, \
                 self.dm15,self.edm15, \
@@ -157,7 +163,8 @@ class HubbleDiagram():
                 self.z,self.evpec = self.input_data
 
     def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=5000,
-            plot_mcmc_diagnostics=False,savepath='distmod_figs'):
+            plot_mcmc_diagnostics=False,save_mcmc_diagnostic_plots=True,
+            savepath='distmod_figs'):
         """
         LNA 20230130
 
@@ -207,6 +214,14 @@ class HubbleDiagram():
         fit_methods = ['ls','mle','mcmc']
         if fitmethod not in fit_methods:
             raise(ValueError(f'Argument fitmethod must be in {fit_methods}.')) 
+        
+        def get_pars(p):
+            if fitmethod == 'ls':
+               return p.params
+            elif fitmethod == 'mle':
+                return p.x
+            elif fitmethod == 'mcmc':
+                return p.params
    
         if fitmethod == 'ls':
             fitobj = kmpfit.Fitter(residuals=self.mod.resid_func, 
@@ -242,7 +257,11 @@ class HubbleDiagram():
             for i, j in enumerate(jacobian):
                 err[i] = np.sqrt(float(j @ fitobj.covar @ j.T) + evpec_err[i]**2)
 
-            return fitobj, np.array(err)
+            self.fit_params = get_pars(fitobj)
+            self.resids = self.mod.model(self.fit_params,self.input_data) - self.mu
+            self.eresids = np.array(err)
+
+            return fitobj, self.resids, self.eresids
 
         elif fitmethod == 'mle' or fitmethod == 'mcmc':
             # MLE and MCMC largely follow https://emcee.readthedocs.io/en/stable/tutorials/line/.
@@ -254,7 +273,10 @@ class HubbleDiagram():
 
             if fitmethod == 'mle':
                 err = np.zeros(len(self.input_data[0]))
-                return fitobj, err
+                self.fit_params = get_pars(fitobj)[:-1]
+                self.resids = self.mod.model(self.fit_params,self.input_data) - self.mu
+                self.eresids = err
+                return fitobj, self.resids, self.eresids
             elif fitmethod == 'mcmc':
                 mc = emcee_object(self.mod)
                 fitmc = mc.run_emcee(mcmc_niter,self.input_data)
@@ -267,48 +289,57 @@ class HubbleDiagram():
                         print('Creating save directory for MCMC diagnostic plots:',
                               '\n',os.path.join(os.getcwd(),savepath))
                         os.makedirs(savepath)
-                    mc.plot_diagnostics_(self.mod.param_names().keys(),savepath)
+                    mc.plot_diagnostics_(self.mod.param_names().keys(),save_mcmc_diagnostic_plots,
+                                         savepath)
+                    print('savepath for mcmc diag. plot', savepath)
 
                 all_par_est = mc.flat_samples.T[:-1].T
                 all_possible_models = np.apply_along_axis(self.mod.model,1,arr=all_par_est,data=self.input_data)
 
                 err = np.sqrt(np.apply_along_axis(np.std,0,all_possible_models)**2 + self.evpec**2)
-                return mc, err
+                self.fit_params = get_pars(mc)[:-1]
+                self.resids = self.mod.model(self.fit_params,self.input_data) - self.mu
+                self.eresids = err
+                return mc, self.resids, self.eresids
 
+    def wrms(self):
+        return wRMS(self.resids,self.eresids)
 
-    @jit(forceobj=True)
-    def loocv(self,fitmethod,initial_guess,scale_errors=False):
-        """
-        Leave-one-out cross-validation for your dataset. 
-        Generates LOOCV distance moduli and residuals. 
-        """
-        def get_pars(p):
-            if fitmethod == 'ls':
-               return p.params
-            elif fitmethod == 'mle':
-                return p.x
-            elif fitmethod == 'mcmc':
-                return p.params
+    # @jit(forceobj=True)
+    # def loocv(self,fitmethod,initial_guess,scale_errors=False):
+    #     """
+    #     Leave-one-out cross-validation for your dataset. 
+    #     Generates LOOCV distance moduli and residuals. 
+    #     """
 
-        test_mus, test_resids, test_errs = []
+    #     def get_pars(p):
+    #         if fitmethod == 'ls':
+    #            return p.params
+    #         elif fitmethod == 'mle':
+    #             return p.x
+    #         elif fitmethod == 'mcmc':
+    #             return p.params
 
-        N = len(self.input_data[0])
-        indices = np.arange(0,len(self.input_data[0]+1,1))
-        original_input_data = copy(self.input_data)
-        for i in range(N):
-            mask=(indices==i)
-            # Need to redefine self.input_data so self.fit() will use
-            # it without data i. So, from here on, self.input_data
-            # is the training data set, missing data point i. We'll
-            # put it back to its original state at the end. This is
-            # probably bad practice, but that's how it's going to be
-            # for now. 
-            self.input_data = [dat[~mask] for dat in original_input_data]
-            test_args = original_input_data[mask]
-            train_fitobj, train_err = self.fit(fitmethod,initial_guess,scale_errors)
-            test_mu = self.mod.model(get_pars(train_fitobj),test_args)
+    #     test_mus, test_resids, test_errs = []
 
-            ### THIS FUNCTION IS INCOMPLETE. 
+    #     N = len(self.input_data[0])
+    #     indices = np.arange(0,len(self.input_data[0]+1,1))
+    #     original_input_data = copy(self.input_data)
+    #     for i in range(N):
+    #         mask=(indices==i)
+    #         # Need to redefine self.input_data so self.fit() will use
+    #         # it without data i. So, from here on, self.input_data
+    #         # is the training data set, missing data point i. We'll
+    #         # put it back to its original state at the end. This is
+    #         # probably bad practice, but that's how it's going to be
+    #         # for now. 
+    #         self.input_data = [dat[~mask] for dat in original_input_data]
+    #         test_args = original_input_data[mask]
+    #         train_fitobj, train_err = self.fit(fitmethod,initial_guess,scale_errors)
+    #         test_mu = self.mod.model(get_pars(train_fitobj),test_args)
 
-        # Now that we're done, put your self.input_data back to its rightful place.
-        self.input_data = original_input_data
+    #         ### THIS FUNCTION IS INCOMPLETE. 
+
+    #     # Now that we're done, put your self.input_data back to its rightful place.
+    #     self.input_data = original_input_data
+

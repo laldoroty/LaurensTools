@@ -60,7 +60,7 @@ class emcee_object():
         self.params = np.array(self.params)
         self.xerror = np.array(self.xerror)
 
-    def plot_diagnostics_(self,param_names,savepath):
+    def plot_diagnostics_(self,param_names,save,savepath):
         fig_1, axes = plt.subplots(self.npars, figsize=(10,15), sharex=True)
         samples = self.sampler.get_chain()
         labels = list(param_names)
@@ -71,12 +71,14 @@ class emcee_object():
             ax.set_ylabel(labels[i])
         axes[-1].set_xlabel("Step number")
         plt.tight_layout()
-        plt.savefig(pa.join(savepath,f'mcmc_chains_{self.model.name()}.png'),
-                    dpi=300,bbox_inches='tight')
+        if save:
+            plt.savefig(pa.join(savepath,f'mcmc_chains_{self.model.name()}.png'),
+                        dpi=300,bbox_inches='tight')
         plt.show()
 
         fig_2 = corner.corner(self.flat_samples,labels=labels)
         fig_2.subplots_adjust(right=2,top=2) # Necessary if you're using the
                                              # LaurensTools.utils.plotaesthetics
-        fig_2.savefig(pa.join(savepath,f'mcmc_corner_{self.model.name()}.png'),
-                      dpi=300,bbox_inches='tight')
+        if save:
+            fig_2.savefig(pa.join(savepath,f'mcmc_corner_{self.model.name()}.png'),
+                        dpi=300,bbox_inches='tight')
