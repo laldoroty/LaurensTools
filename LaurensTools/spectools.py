@@ -164,10 +164,10 @@ def pEW(wave, flux, var, start_lam, end_lam, absorption=True, return_error=True,
     else:
         raise ValueError('just_the_pEW must be boolean, i.e., True or False')
 
-def pEW_mcmc(wave,flux,var,start_lam,end_lam,Niter=225):
+def pEW_mcmc(wave,flux,var,start_lam,end_lam,just_the_pEW,Niter=225):
     pewlist = []
     for i in range(Niter):
-        pewlist.append(pEW(wave, flux, var, start_lam-np.random.randint(-10,11), end_lam+np.random.randint(-10,11), return_error=False, just_the_pEW=True, plotline=False))
+        pewlist.append(pEW(wave, flux, var, start_lam-np.random.randint(-10,11), end_lam+np.random.randint(-10,11), return_error=False, just_the_pEW=just_the_pEW, plotline=False))
     
     return np.mean(pewlist), np.std(pewlist)
 
@@ -185,6 +185,9 @@ def line_velocity(wave, flux, var, start_lam, end_lam, rest_lam, absorption=True
     absorption -- Boolean. If True, the input line is an absorption line. If false, the input line is an emission line.
 
     """
+    wave = np.array(wave)
+    flux = np.array(flux)
+    var = np.array(var)
 
     start_idx = find_nearest(wave,start_lam)
     end_idx = find_nearest(wave,end_lam)
@@ -237,8 +240,8 @@ def line_velocity(wave, flux, var, start_lam, end_lam, rest_lam, absorption=True
     #     raise ValueError('absorption must be boolean, i.e., True or False')
 
     if plotline:
-        plt.plot(wave_lineonly,flux_lineonly)
-        plt.plot(wave_lineonly,gaus(wave_lineonly,*pars))
+        plt.plot(wave_lineonly,flux_lineonly,marker='none')
+        plt.plot(wave_lineonly,gaus(wave_lineonly,*pars),marker='none')
         plt.axvline(x=pars[1], linestyle='--',color='black')
         plt.xlabel('Wavelength')
         plt.ylabel('Normalized flux')

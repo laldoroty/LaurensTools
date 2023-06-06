@@ -49,7 +49,8 @@ class HubbleDiagram():
                     dm15=None, edm15=None,
                     x1=None, ex1=None,
                     c=None, ec=None,
-                    # frni=None, efrni=None,
+                    frni=None, efrni=None, # delete later
+                    pew4000=None, epew4000=None, # delete this later
                     bbv=None, ebbv=None,
                     slope=None, eslope=None,
                     vpec=None,
@@ -62,7 +63,8 @@ class HubbleDiagram():
         self.dm15,self.edm15=np.array(dm15,dtype='float64'),np.array(edm15,dtype='float64')
         self.x1,self.ex1=np.array(x1,dtype='float64'),np.array(ex1,dtype='float64')
         self.c,self.ec=np.array(c,dtype='float64'),np.array(ec,dtype='float64')
-        # self.frni,self.efrni=np.array(frni,dtype='float64'),np.array(efrni,dtype='float64')
+        self.frni,self.efrni=np.array(frni,dtype='float64'),np.array(efrni,dtype='float64') # delete later
+        self.pew4000,self.epew4000=np.array(pew4000,dtype='float64'),np.array(epew4000,dtype='float64') # delete this later
         self.bbv,self.ebbv = np.array(bbv,dtype='float64'),np.array(ebbv,dtype='float64')
         self.slope,self.eslope = np.array(slope,dtype='float64'),np.array(eslope,dtype='float64')
         self.z=np.array(z,dtype='float64')
@@ -94,6 +96,8 @@ class HubbleDiagram():
             self.input_data = [self.mu,self.bmax,self.ebmax,
                             self.x1,self.ex1,
                             self.c,self.ec,
+                            self.frni,self.efrni, # delete later
+                            self.pew4000,self.epew4000, # delete later
                             self.z,self.evpec]
         # elif self.model == 'FRNi':
         #     self.mod = FRNi()
@@ -144,6 +148,8 @@ class HubbleDiagram():
                 self.mu,self.bmax,self.ebmax, \
                 self.x1,self.ex1, \
                 self.c,self.ec, \
+                self.frni,self.efrni, \
+                self.pew4000,self.epew4000, \
                 self.z,self.evpec = self.input_data
             # elif self.model == 'FRNi':
             #     self.mu,self.bmax,self.ebmax, \
@@ -164,7 +170,7 @@ class HubbleDiagram():
 
     def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=5000,
             plot_mcmc_diagnostics=False,save_mcmc_diagnostic_plots=True,
-            savepath='distmod_figs'):
+            savepath='distmod_figs',snf=False):
         """
         LNA 20230130
 
@@ -208,6 +214,9 @@ class HubbleDiagram():
         as well as anything else accessible from 
         self.sampler, which is an instance of:
         https://emcee.readthedocs.io/en/stable/user/sampler/ 
+
+        Set snf=True if using SNfactory data. This will
+        hide the zeropoint in the diagnostic plots. 
 
         """
 
@@ -290,7 +299,7 @@ class HubbleDiagram():
                               '\n',os.path.join(os.getcwd(),savepath))
                         os.makedirs(savepath)
                     mc.plot_diagnostics_(self.mod.param_names().keys(),save_mcmc_diagnostic_plots,
-                                         savepath)
+                                         savepath,snf=snf)
                     print('savepath for mcmc diag. plot', savepath)
 
                 all_par_est = mc.flat_samples.T[:-1].T

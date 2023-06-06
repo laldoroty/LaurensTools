@@ -10,3 +10,5 @@ Cython
 pycmpfit
 numba
 kapteyn
+emcee
+corner

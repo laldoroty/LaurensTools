@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import emcee
 import corner
 import os.path as pa
+from copy import deepcopy
+from ..utils import plotaesthetics
 
 class emcee_object():
     """
@@ -60,13 +62,23 @@ class emcee_object():
         self.params = np.array(self.params)
         self.xerror = np.array(self.xerror)
 
-    def plot_diagnostics_(self,param_names,save,savepath):
+    def plot_diagnostics_(self,param_names,save,savepath,snf=False):
+        """
+        Set snf=True if you are using SNfactory data.
+        This will hide the zeropoint for M.
+        """
+        
         fig_1, axes = plt.subplots(self.npars, figsize=(10,15), sharex=True)
         samples = self.sampler.get_chain()
         labels = list(param_names)
         for i in range(self.ndim):
             ax = axes[i]
-            ax.plot(samples[:,:,i], 'k', alpha=0.2, marker='None')
+            if snf:
+                samples[:,:,0] = samples[:,:,0] - np.mean(samples[:,:,0])
+                labels[0] = 'M - <M>'
+                ax.plot(samples[:,:,i], 'k', alpha=0.2, marker='None')
+            else:
+                ax.plot(samples[:,:,i], 'k', alpha=0.2, marker='None')
             ax.set_xlim(0,len(samples))
             ax.set_ylabel(labels[i])
         axes[-1].set_xlabel("Step number")
@@ -76,7 +88,17 @@ class emcee_object():
                         dpi=300,bbox_inches='tight')
         plt.show()
 
-        fig_2 = corner.corner(self.flat_samples,labels=labels)
+        if snf:
+            snf_flat_samples = deepcopy(self.flat_samples)
+            snf_flat_samples = np.transpose(snf_flat_samples)
+            mean_M = np.mean(snf_flat_samples[0])
+            snf_flat_samples[0] = snf_flat_samples[0] - mean_M
+            snf_flat_samples = np.transpose(snf_flat_samples)
+            labels[0] = 'M - <M>'
+            fig_2 = corner.corner(snf_flat_samples,labels=labels)
+        else:
+            fig_2 = corner.corner(self.flat_samples,labels=labels)
+        
         fig_2.subplots_adjust(right=2,top=2) # Necessary if you're using the
                                              # LaurensTools.utils.plotaesthetics
         if save:

@@ -80,12 +80,12 @@ class salt():
 
     def model(self,p,data):
         M,a,b = p
-        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data
+        mu,bmax,ebmax,x1,ex1,c,ec,frni,efrni,pew4000,epew4000,z,evpec = data # delete frni and pew4000 later
         return bmax - M - a*x1 - b*c
 
     def resid_func(self,p,data):
         M,a,b = p
-        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data
+        mu,bmax,ebmax,x1,ex1,c,ec,frni,efrni,pew4000,epew4000,z,evpec = data # delete frni and pew4000 later
         num = self.model(p,data) - mu
         den = np.sqrt(evpec**2 + 
             ebmax**2 + a**2*ex1**2 + b**2*ec**2)
@@ -93,7 +93,7 @@ class salt():
 
     def log_likelihood(self,p,data):
         M,a,b,log_f = p
-        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data
+        mu,bmax,ebmax,x1,ex1,c,ec,frni,efrni,pew4000,epew4000,z,evpec = data # delete frni and pew4000 later
         sigma2 = evpec**2 + ebmax**2 + a**2*ex1**2 + b**2*ec**2 + self.model([M,a,b], data)**2 * np.exp(2 * log_f)
         return -0.5 * np.sum((self.model([M,a,b], data) - mu) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
 
@@ -114,7 +114,7 @@ class salt():
         else: return lp + self.log_likelihood(p,data)
 
     def jac(self,data):
-        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data
+        mu,bmax,ebmax,x1,ex1,c,ec,frni,efrni,pew4000,epew4000,z,evpec = data # delete frni and pew4000 later
         return np.array([-np.ones(len(x1)), x1, -c], dtype='object').T
     
 # class FRNi():
