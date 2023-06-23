@@ -168,9 +168,15 @@ def band_flux(wave,flux,var,sys=None,standard='vega',spec_units='ergs',redshift_
             else: redshift_factor = 1
             responsefunc_interp = interp1d(responsefunc[band]['wavelength']*redshift_factor, responsefunc[band]['transmission'],kind='linear',bounds_error=False)
 
-            F_ = np.sum(flux[1:]*(h*c/wave[1:])*np.nan_to_num(responsefunc_interp(wave)[1:])*dlam)
-            Fref = np.sum(st_flux[1:]*(h*c/st_wav[1:])*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_dlam)
-            eF_ = np.sum(np.sqrt(var[1:])*(h*c/wave[1:])*np.nan_to_num(responsefunc_interp(wave)[1:])*dlam)/Fref
+            # No, actually, this is old and wrong. Keeping it here for posterity. 
+            # This is the 'real' code, the uncommented copied and pasted block below is because you're messing with some stuff. 
+            # F_ = np.sum(flux[1:]*(h*c/wave[1:])*np.nan_to_num(responsefunc_interp(wave)[1:])*dlam)
+            # Fref = np.sum(st_flux[1:]*(h*c/st_wav[1:])*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_dlam)
+            # eF_ = np.sum(np.sqrt(var[1:])*(h*c/wave[1:])*np.nan_to_num(responsefunc_interp(wave)[1:])*dlam)/Fref
+
+            F_ = np.sum(flux[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])*dlam)
+            Fref = np.sum(st_flux[1:]*np.nan_to_num(responsefunc_interp(st_wav)[1:])*st_dlam)
+            eF_ = np.sqrt(np.sum(var[1:]*np.nan_to_num(responsefunc_interp(wave)[1:])**2*dlam**2))/Fref
 
             F[band] = F_/Fref
             eF[band] = eF_

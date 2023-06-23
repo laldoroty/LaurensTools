@@ -81,8 +81,8 @@ class HubbleDiagram():
         self.resids = None
         self.eresids = None
 
-        # models = ['tripp','salt','FRNi','H18','A23','slope']
-        models = ['tripp','salt','H18','A23','slope']
+        models = ['tripp','salt','FRNi','H18','A23','slope']
+        # models = ['tripp','salt','H18','A23','slope']
         if model not in models:
             raise(ValueError(f'Argument model must be in {models}.'))    
         elif self.model == 'tripp':
@@ -99,12 +99,12 @@ class HubbleDiagram():
                             self.frni,self.efrni, # delete later
                             self.pew4000,self.epew4000, # delete later
                             self.z,self.evpec]
-        # elif self.model == 'FRNi':
-        #     self.mod = FRNi()
-        #     self.input_data = [self.mu,self.bmax,self.ebmax,
-        #                     self.frni,self.efrni,
-        #                     self.c,self.ec,
-        #                     self.z,self.evpec]
+        elif self.model == 'FRNi':
+            self.mod = FRNi()
+            self.input_data = [self.mu,self.bmax,self.ebmax,
+                            self.frni,self.efrni,
+                            self.c,self.ec,
+                            self.z,self.evpec]
         elif self.model == 'H18' or self.model == 'A23':
             self.input_data = [self.mu,self.bmax,self.ebmax,
                             self.dm15,self.edm15,
@@ -151,11 +151,11 @@ class HubbleDiagram():
                 self.frni,self.efrni, \
                 self.pew4000,self.epew4000, \
                 self.z,self.evpec = self.input_data
-            # elif self.model == 'FRNi':
-            #     self.mu,self.bmax,self.ebmax, \
-            #     self.frni,self.efrni, \
-            #     self.c,self.ec, \
-            #     self.z,self.evpec = self.input_data
+            elif self.model == 'FRNi':
+                self.mu,self.bmax,self.ebmax, \
+                self.frni,self.efrni, \
+                self.c,self.ec, \
+                self.z,self.evpec = self.input_data
             elif self.model == 'H18' or self.model == 'A23':
                 self.mu,self.bmax,self.ebmax, \
                 self.dm15,self.edm15, \
@@ -168,7 +168,7 @@ class HubbleDiagram():
                 self.slope,self.eslope, \
                 self.z,self.evpec = self.input_data
 
-    def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=5000,
+    def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=10000,
             plot_mcmc_diagnostics=False,save_mcmc_diagnostic_plots=True,
             savepath='distmod_figs',snf=False):
         """
