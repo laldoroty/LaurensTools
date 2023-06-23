@@ -168,7 +168,7 @@ class HubbleDiagram():
                 self.slope,self.eslope, \
                 self.z,self.evpec = self.input_data
 
-    def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=10000,
+    def fit(self,fitmethod,initial_guess,scale_errors=False,mcmc_niter=5000,
             plot_mcmc_diagnostics=False,save_mcmc_diagnostic_plots=True,
             savepath='distmod_figs',snf=False):
         """

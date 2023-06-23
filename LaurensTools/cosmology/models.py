@@ -134,7 +134,7 @@ class FRNi():
         Parameter names with corresponding initializing bounds for
         MCMC fitting. 
         """
-        return {'M': [-26,-18], 'a': [-1,3], 'b': [-5,0], 'log(f)': [-20,0]}
+        return {'M': [-22,-18], 'a': [-1,3], 'b': [0,5], 'log(f)': [-10,0]}
 
     def model(self,p,data):
         M,a,b = p
