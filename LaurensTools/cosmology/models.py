@@ -80,12 +80,12 @@ class salt():
 
     def model(self,p,data):
         M,a,b = p
-        mu,bmax,ebmax,x1,ex1,c,ec,frni,efrni,pew4000,epew4000,z,evpec = data # delete frni and pew4000 later
+        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data 
         return bmax - M - a*x1 - b*c
 
     def resid_func(self,p,data):
         M,a,b = p
-        mu,bmax,ebmax,x1,ex1,c,ec,frni,efrni,pew4000,epew4000,z,evpec = data # delete frni and pew4000 later
+        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data 
         num = self.model(p,data) - mu
         den = np.sqrt(evpec**2 + 
             ebmax**2 + a**2*ex1**2 + b**2*ec**2)
@@ -93,7 +93,7 @@ class salt():
 
     def log_likelihood(self,p,data):
         M,a,b,log_f = p
-        mu,bmax,ebmax,x1,ex1,c,ec,frni,efrni,pew4000,epew4000,z,evpec = data # delete frni and pew4000 later
+        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data 
         sigma2 = evpec**2 + ebmax**2 + a**2*ex1**2 + b**2*ec**2 + self.model([M,a,b], data)**2 * np.exp(2 * log_f)
         return -0.5 * np.sum((self.model([M,a,b], data) - mu) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
 
@@ -114,7 +114,7 @@ class salt():
         else: return lp + self.log_likelihood(p,data)
 
     def jac(self,data):
-        mu,bmax,ebmax,x1,ex1,c,ec,frni,efrni,pew4000,epew4000,z,evpec = data # delete frni and pew4000 later
+        mu,bmax,ebmax,x1,ex1,c,ec,z,evpec = data 
         return np.array([-np.ones(len(x1)), x1, -c], dtype='object').T
     
 class FRNi():
@@ -138,21 +138,21 @@ class FRNi():
 
     def model(self,p,data):
         M,a,b = p
-        mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
-        return bmax - M - a*(frni - np.mean(frni)) - b*(c - np.mean(c))
+        mu,bmax,ebmax,frni,efrni,bvmax,ebvmax,z,evpec = data
+        return bmax - M - a*(frni - np.mean(frni)) - b*(bvmax - np.mean(bvmax))
 
     def resid_func(self,p,data):
         M,a,b = p
-        mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
+        mu,bmax,ebmax,frni,efrni,bvmax,ebvmax,z,evpec = data
         num = self.model(p,data) - mu
         den = np.sqrt(evpec**2 + 
-            ebmax**2 + a**2*efrni**2 + b**2*ec**2)
+            ebmax**2 + a**2*efrni**2 + b**2*ebvmax**2)
         return num/den
 
     def log_likelihood(self,p,data):
         M,a,b,log_f = p
-        mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
-        sigma2 = evpec**2 + ebmax**2 + a**2*efrni**2 + b**2*ec**2 + self.model([M,a,b], data)**2 * np.exp(2 * log_f)
+        mu,bmax,ebmax,frni,efrni,bvmax,ebvmax,z,evpec = data
+        sigma2 = evpec**2 + ebmax**2 + a**2*efrni**2 + b**2*ebvmax**2 + self.model([M,a,b], data)**2 * np.exp(2 * log_f)
         return -0.5 * np.sum((self.model([M,a,b], data) - mu) ** 2 / sigma2 + np.log(sigma2)) + np.log(2*np.pi)
 
     def log_prior(self,p):
@@ -172,8 +172,8 @@ class FRNi():
         else: return lp + self.log_likelihood(p,data)
 
     def jac(self,data):
-        mu,bmax,ebmax,frni,efrni,c,ec,z,evpec = data
-        return np.array([-np.ones(len(frni)), frni - np.mean(frni), -c + np.mean(c)], dtype='object').T
+        mu,bmax,ebmax,frni,efrni,bvmax,ebvmax,z,evpec = data
+        return np.array([-np.ones(len(frni)), frni - np.mean(frni), -bvmax + np.mean(bvmax)], dtype='object').T
 
 class H18():
     """

@@ -63,8 +63,7 @@ class HubbleDiagram():
         self.dm15,self.edm15=np.array(dm15,dtype='float64'),np.array(edm15,dtype='float64')
         self.x1,self.ex1=np.array(x1,dtype='float64'),np.array(ex1,dtype='float64')
         self.c,self.ec=np.array(c,dtype='float64'),np.array(ec,dtype='float64')
-        self.frni,self.efrni=np.array(frni,dtype='float64'),np.array(efrni,dtype='float64') # delete later
-        self.pew4000,self.epew4000=np.array(pew4000,dtype='float64'),np.array(epew4000,dtype='float64') # delete this later
+        self.frni,self.efrni=np.array(frni,dtype='float64'),np.array(efrni,dtype='float64') 
         self.bbv,self.ebbv = np.array(bbv,dtype='float64'),np.array(ebbv,dtype='float64')
         self.slope,self.eslope = np.array(slope,dtype='float64'),np.array(eslope,dtype='float64')
         self.z=np.array(z,dtype='float64')
@@ -74,8 +73,11 @@ class HubbleDiagram():
         self.cosmo = FlatLambdaCDM(H0=H0,Om0=Om0)
         self.mu = self.cosmo.distmod(self.z).value
 
-        self.names = np.array(names)
-        self.info_tags = np.array(info_tags)
+        self.names = names
+        self.info_tags = info_tags 
+
+        if names is not None: self.names = np.array(names)
+        if info_tags is not None: self.info_tags = np.array(info_tags)
 
         self.fit_params = None
         self.resids = None
@@ -96,14 +98,12 @@ class HubbleDiagram():
             self.input_data = [self.mu,self.bmax,self.ebmax,
                             self.x1,self.ex1,
                             self.c,self.ec,
-                            self.frni,self.efrni, # delete later
-                            self.pew4000,self.epew4000, # delete later
                             self.z,self.evpec]
         elif self.model == 'FRNi':
             self.mod = FRNi()
             self.input_data = [self.mu,self.bmax,self.ebmax,
                             self.frni,self.efrni,
-                            self.c,self.ec,
+                            self.bvmax,self.ebvmax,
                             self.z,self.evpec]
         elif self.model == 'H18' or self.model == 'A23':
             self.input_data = [self.mu,self.bmax,self.ebmax,
@@ -139,6 +139,9 @@ class HubbleDiagram():
             for dlist in old_input_data:
                 self.input_data.append(dlist[mask])
 
+            if self.names is not None: self.names = self.names[mask]
+            if self.info_tags is not None: self.info_tags = self.info_tags[mask]
+
             if self.model == 'tripp':
                 self.mu,self.bmax,self.ebmax, \
                 self.bvmax,self.ebvmax, \
@@ -148,8 +151,6 @@ class HubbleDiagram():
                 self.mu,self.bmax,self.ebmax, \
                 self.x1,self.ex1, \
                 self.c,self.ec, \
-                self.frni,self.efrni, \
-                self.pew4000,self.epew4000, \
                 self.z,self.evpec = self.input_data
             elif self.model == 'FRNi':
                 self.mu,self.bmax,self.ebmax, \
