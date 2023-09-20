@@ -126,3 +126,6 @@ def weighted_corr(xi,yi,exi,eyi):
 
 #     cdf_x = np.searchsorted(x, xy, side='right')/len(x)
 #     cdf_y = np.searchsorted(y, xy, side='right')/len(y)
+
+def dans_stdev(s):
+    return 1.48*np.median(np.absolute(s))
