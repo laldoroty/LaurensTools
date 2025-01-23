@@ -12,3 +12,4 @@ numba
 kapteyn
 emcee
 corner
+lmfit
