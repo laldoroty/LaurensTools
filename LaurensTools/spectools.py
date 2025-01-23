@@ -53,7 +53,7 @@ def normalize(wave,flux,start_lam,end_lam,var=None):
     start_idx = find_nearest(wave, start_lam)
     end_idx = find_nearest(wave, end_lam)
 
-    if var.all() == None:
+    if var is None or var.all() == None:
         return wave[start_idx:end_idx], flux[start_idx:end_idx]/continuum(wave[start_idx:end_idx])
     else:
         return wave[start_idx:end_idx], flux[start_idx:end_idx]/continuum(wave[start_idx:end_idx]), var[start_idx:end_idx]
@@ -79,7 +79,6 @@ def pEW(wave, flux, var, start_lam, end_lam, absorption=True, return_error=True,
     n = len(normalized_wave)
     mean = np.sum(normalized_wave*normalized_lineonly)/np.sum(normalized_lineonly)  
     sigma = np.sqrt(sum((normalized_wave-mean)**2)/n)
-
     gmodel = Model(gaus)
 
     if absorption == True:
@@ -96,7 +95,7 @@ def pEW(wave, flux, var, start_lam, end_lam, absorption=True, return_error=True,
         
 
     err_lineonly = np.sqrt(var_lineonly)
-    result = gmodel.fit(normalized_lineonly, initial_guess, x=normalized_wave)
+    result = gmodel.fit(normalized_lineonly, initial_guess, x=normalized_wave, nan_policy='propagate')
 
     # if err == None and return_error==True:
     #     raise ValueError('Array must be supplied as an argument for err if return_error == True.')
@@ -125,11 +124,8 @@ def pEW(wave, flux, var, start_lam, end_lam, absorption=True, return_error=True,
     stepsize=1
     wavelength_range = np.arange(start_lam,end_lam,stepsize)
 
-    pew = np.sum(1 - gaus(wavelength_range,*pars))*stepsize
+    pew = abs(np.sum(1 - gaus(wavelength_range,*pars))*stepsize)
     # pew = np.sum((1-normalized_lineonly)*stepsize)
-
-    if pew < 0:
-        pew = 0
 
     if return_error:
         # scaled_err = err*np.sqrt(result.redchi)
@@ -164,10 +160,10 @@ def pEW(wave, flux, var, start_lam, end_lam, absorption=True, return_error=True,
     else:
         raise ValueError('just_the_pEW must be boolean, i.e., True or False')
 
-def pEW_mcmc(wave,flux,var,start_lam,end_lam,just_the_pEW,Niter=225):
+def pEW_mcmc(wave,flux,var,start_lam,end_lam,absorption,just_the_pEW,Niter=225):
     pewlist = []
     for i in range(Niter):
-        pewlist.append(pEW(wave, flux, var, start_lam-np.random.randint(-10,11), end_lam+np.random.randint(-10,11), return_error=False, just_the_pEW=just_the_pEW, plotline=False))
+        pewlist.append(pEW(wave, flux, var, start_lam-np.random.randint(-10,11), end_lam+np.random.randint(-10,11), absorption=absorption, return_error=False, just_the_pEW=just_the_pEW, plotline=False))
     
     return np.mean(pewlist), np.std(pewlist)
 
